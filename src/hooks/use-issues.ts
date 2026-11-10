@@ -6,6 +6,7 @@ import {
   issuesApi,
   projectsApi,
   sprintsApi,
+  commentsApi,
   IssueFilterParams,
 } from '@/lib/api';
 import {
@@ -15,12 +16,14 @@ import {
   ProjectMember,
   Sprint,
   UpdateIssueInput,
+  Comment,
 } from '@/types/issue';
 
 export const ISSUES_QUERY_KEY = 'issues';
 export const TRASH_QUERY_KEY = 'issues-trash';
 export const MEMBERS_QUERY_KEY = 'project-members';
 export const SPRINTS_QUERY_KEY = 'project-sprints';
+export const COMMENTS_QUERY_KEY = 'issue-comments';
 
 function getErrorMessage(err: unknown, fallback: string): string {
   if (err && typeof err === 'object') {
@@ -323,6 +326,88 @@ export function usePermanentDeleteMutation(projectKey = 'TYK') {
 
       queryClient.setQueryData<Issue[]>([TRASH_QUERY_KEY, projectKey], nextTrash);
       toast.success('Issue permanently deleted');
+    },
+  });
+}
+
+/**
+ * Fetch comments for an issue
+ */
+export function useComments(issueId?: string) {
+  return useQuery<Comment[]>({
+    queryKey: [COMMENTS_QUERY_KEY, issueId],
+    queryFn: async () => {
+      if (!issueId) return [];
+      return await commentsApi.getComments(issueId);
+    },
+    enabled: Boolean(issueId),
+    staleTime: 10000,
+  });
+}
+
+/**
+ * Create comment mutation
+ */
+export function useCreateCommentMutation(issueId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (content: string) => {
+      return await commentsApi.createComment(issueId, content);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [COMMENTS_QUERY_KEY, issueId] });
+      toast.success('Comment added');
+    },
+    onError: (err: unknown) => {
+      toast.error('Failed to post comment', {
+        description: getErrorMessage(err, 'Failed to post comment'),
+      });
+    },
+  });
+}
+
+/**
+ * Update comment mutation
+ */
+export function useUpdateCommentMutation(issueId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ commentId, content }: { commentId: string; content: string }) => {
+      return await commentsApi.updateComment(commentId, content);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [COMMENTS_QUERY_KEY, issueId] });
+      toast.success('Comment updated');
+    },
+    onError: (err: unknown) => {
+      toast.error('Failed to update comment', {
+        description: getErrorMessage(err, 'Failed to update comment'),
+      });
+    },
+  });
+}
+
+/**
+ * Delete comment mutation
+ */
+export function useDeleteCommentMutation(issueId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (commentId: string) => {
+      await commentsApi.deleteComment(commentId);
+      return commentId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [COMMENTS_QUERY_KEY, issueId] });
+      toast.success('Comment deleted');
+    },
+    onError: (err: unknown) => {
+      toast.error('Failed to delete comment', {
+        description: getErrorMessage(err, 'Failed to delete comment'),
+      });
     },
   });
 }

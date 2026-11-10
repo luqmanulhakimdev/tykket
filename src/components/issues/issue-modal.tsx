@@ -11,6 +11,7 @@ import { Issue, IssuePriority, IssueStatus, IssueType, User } from '@/types/issu
 import { IssueTypeIcon, issueTypeOptions } from './issue-type-icon';
 import { IssuePriorityIcon, issuePriorityOptions } from './issue-priority-icon';
 import { IssueDescriptionEditor } from './issue-description-editor';
+import { IssueComments } from './issue-comments';
 import {
   useIssues,
   useCreateIssueMutation,
@@ -495,6 +496,11 @@ function IssueModalForm({
                 </p>
               )}
             </div>
+          )}
+
+          {/* Issue Comments & Discussion (Available for existing issues) */}
+          {issueToEdit && (
+            <IssueComments issueId={issueToEdit.id} issueKey={issueToEdit.key} />
           )}
         </div>
 

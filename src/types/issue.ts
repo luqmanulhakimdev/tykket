@@ -261,3 +261,49 @@ export function normalizeIssue(raw: Record<string, unknown> | Issue): Issue {
     subtasks,
   };
 }
+
+export interface Comment {
+  id: string;
+  issue_id: string;
+  issueId?: string;
+  user_id: string;
+  userId?: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+  user?: User;
+}
+
+export interface CreateCommentInput {
+  content: string;
+}
+
+export interface UpdateCommentInput {
+  content: string;
+}
+
+export function normalizeComment(raw: unknown): Comment {
+  const c = raw as Record<string, unknown>;
+  const user = c.user as User | undefined;
+  return {
+    id: String(c.id || ''),
+    issue_id: String(c.issue_id || c.issueId || ''),
+    issueId: String(c.issue_id || c.issueId || ''),
+    user_id: String(c.user_id || c.userId || ''),
+    userId: String(c.user_id || c.userId || ''),
+    content: String(c.content || ''),
+    created_at: String(c.created_at || c.createdAt || new Date().toISOString()),
+    updated_at: String(c.updated_at || c.updatedAt || new Date().toISOString()),
+    deleted_at: (c.deleted_at as string) || (c.deletedAt as string) || undefined,
+    user: user
+      ? {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          avatarUrl: user.avatarUrl || user.avatar_url,
+          avatar_url: user.avatar_url || user.avatarUrl,
+        }
+      : undefined,
+  };
+}

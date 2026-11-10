@@ -10,6 +10,8 @@ import {
   UpdateIssueInput,
   User,
   normalizeIssue,
+  Comment,
+  normalizeComment,
 } from '@/types/issue';
 
 export const API_BASE_URL =
@@ -503,6 +505,45 @@ export const uploadApi = {
       size: data.size || data.data?.size || file.size,
       mimetype: data.data?.mimetype || file.type,
     };
+  },
+};
+
+// ----------------------------------------------------------------------
+// Comments API
+// ----------------------------------------------------------------------
+export const commentsApi = {
+  getComments: async (issueId: string): Promise<Comment[]> => {
+    if (!issueId) return [];
+    try {
+      const res: AxiosResponse<ApiResponse<Record<string, unknown>[]>> = await apiClient.get(
+        `/issues/${issueId}/comments`
+      );
+      const items = res.data.data || [];
+      return items.map(normalizeComment);
+    } catch (err) {
+      console.warn('Failed to load comments for issue:', issueId, err);
+      return [];
+    }
+  },
+
+  createComment: async (issueId: string, content: string): Promise<Comment> => {
+    const res: AxiosResponse<ApiResponse<Record<string, unknown>>> = await apiClient.post(
+      `/issues/${issueId}/comments`,
+      { content }
+    );
+    return normalizeComment(res.data.data);
+  },
+
+  updateComment: async (commentId: string, content: string): Promise<Comment> => {
+    const res: AxiosResponse<ApiResponse<Record<string, unknown>>> = await apiClient.put(
+      `/comments/${commentId}`,
+      { content }
+    );
+    return normalizeComment(res.data.data);
+  },
+
+  deleteComment: async (commentId: string): Promise<void> => {
+    await apiClient.delete(`/comments/${commentId}`);
   },
 };
 
