@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useCallback } from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname, useParams } from 'next/navigation';
 import { IssuePriority, IssueType } from '@/types/issue';
 import { IssueTypeIcon, issueTypeOptions } from '@/components/issues/issue-type-icon';
 import { IssuePriorityIcon, issuePriorityOptions } from '@/components/issues/issue-priority-icon';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useProjectMembers } from '@/hooks/use-issues';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +25,8 @@ import {
   Filter,
   Check,
   UserCheck,
+  UserX,
+  Users,
   RotateCcw,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -37,18 +41,23 @@ export interface BoardFilters {
 }
 
 interface BoardToolbarProps {
+  projectKey?: string;
   totalIssuesCount?: number;
   filteredIssuesCount?: number;
 }
 
 export function BoardToolbar({
+  projectKey: propProjectKey,
   totalIssuesCount = 0,
   filteredIssuesCount = 0,
 }: BoardToolbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const params = useParams();
+  const activeProjectKey = propProjectKey || (params?.projectKey as string) || 'TYK';
   const { user } = useAuth();
+  const { data: projectMembers = [] } = useProjectMembers(activeProjectKey);
 
   // Parse filters from URL search params
   const search = searchParams?.get('search') || '';
@@ -61,6 +70,18 @@ export function BoardToolbar({
 
   const currentUserId = user?.id;
   const isMyIssuesActive = assignee === currentUserId || assignee === 'me';
+
+  const selectedMember = projectMembers.find(
+    (m) => (m.user?.id || m.user_id) === assignee
+  );
+
+  const assigneeLabel = selectedMember
+    ? selectedMember.user?.name || 'Assignee'
+    : assignee === 'unassigned'
+    ? 'Unassigned'
+    : isMyIssuesActive
+    ? 'My Issues'
+    : 'Assignee';
 
   const hasActiveFilters = Boolean(
     search.trim() || types.length > 0 || (priority && priority !== 'ALL') || assignee
@@ -235,6 +256,103 @@ export function BoardToolbar({
                 );
               })}
             </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Assignee Filter Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className={cn(
+              'h-8 px-2.5 rounded-lg border border-border/70 bg-background/80 hover:bg-muted/70 flex items-center gap-1.5 font-medium transition-colors cursor-pointer outline-none',
+              Boolean(assignee) && 'border-primary/40 bg-primary/5 text-primary'
+            )}
+          >
+            <Users size={13} />
+            <span className="truncate max-w-[130px]">{assigneeLabel}</span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-60 p-1">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-[10px] font-semibold text-muted-foreground uppercase">
+                Filter by Assignee
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => updateFilters({ assignee: null })}
+                className="flex items-center justify-between cursor-pointer text-xs"
+              >
+                <span>All Assignees</span>
+                {!assignee && <Check size={13} className="text-primary font-bold" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => updateFilters({ assignee: currentUserId || 'me' })}
+                className="flex items-center justify-between cursor-pointer text-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <UserCheck size={14} className="text-muted-foreground" />
+                  <span>My Issues</span>
+                </div>
+                {isMyIssuesActive && <Check size={13} className="text-primary font-bold" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => updateFilters({ assignee: 'unassigned' })}
+                className="flex items-center justify-between cursor-pointer text-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <UserX size={14} className="text-muted-foreground" />
+                  <span>Unassigned</span>
+                </div>
+                {assignee === 'unassigned' && <Check size={13} className="text-primary font-bold" />}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            {projectMembers.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-[10px] font-semibold text-muted-foreground uppercase">
+                    Team Members
+                  </DropdownMenuLabel>
+                  <div className="max-h-52 overflow-y-auto space-y-0.5">
+                    {projectMembers.map((member) => {
+                      const memberUser = member.user;
+                      const memberId = memberUser?.id || member.user_id;
+                      const isSelected = assignee === memberId;
+                      const memberName = memberUser?.name || 'Member';
+                      const memberAvatar = memberUser?.avatarUrl || memberUser?.avatar_url;
+
+                      return (
+                        <DropdownMenuItem
+                          key={member.id || memberId}
+                          onClick={() => updateFilters({ assignee: memberId })}
+                          className="flex items-center justify-between cursor-pointer text-xs py-1.5"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Avatar size="sm" className="h-5 w-5 ring-1 ring-border shrink-0">
+                              {memberAvatar ? (
+                                <AvatarImage src={memberAvatar} alt={memberName} />
+                              ) : (
+                                <AvatarFallback className="text-[9px] font-medium">
+                                  {memberName.charAt(0)}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                            <div className="truncate">
+                              <span className="font-medium text-foreground block truncate">
+                                {memberName}
+                              </span>
+                              {memberUser?.email && (
+                                <span className="text-[10px] text-muted-foreground block truncate">
+                                  {memberUser.email}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {isSelected && <Check size={13} className="text-primary font-bold shrink-0 ml-1.5" />}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </div>
+                </DropdownMenuGroup>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
 

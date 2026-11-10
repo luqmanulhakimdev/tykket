@@ -5,12 +5,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Issue, IssuePriority, IssueStatus, IssueType, User } from '@/types/issue';
 import { IssueTypeIcon, issueTypeOptions } from './issue-type-icon';
 import { IssuePriorityIcon, issuePriorityOptions } from './issue-priority-icon';
+import { IssueDescriptionEditor } from './issue-description-editor';
 import {
   useIssues,
   useCreateIssueMutation,
@@ -396,17 +396,16 @@ function IssueModalForm({
             />
           </div>
 
-          {/* Description Textarea */}
+          {/* Description Rich Text Editor */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Description
             </label>
-            <Textarea
-              rows={6}
+            <IssueDescriptionEditor
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add details, acceptance criteria, or context (Markdown supported)..."
-              className="resize-y min-h-[140px] text-sm leading-relaxed border-border/80 focus-visible:ring-1 bg-background"
+              onChange={setDescription}
+              isFullScreen={isFullScreen}
+              disabled={isSaving}
             />
           </div>
 

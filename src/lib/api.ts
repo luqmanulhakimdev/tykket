@@ -460,4 +460,50 @@ export const issuesApi = {
   },
 };
 
+// ----------------------------------------------------------------------
+// Asset & Upload API
+// ----------------------------------------------------------------------
+export function getBackendAssetUrl(url: string): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  const backendOrigin = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+  return `${backendOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
+export interface UploadResult {
+  location: string;
+  url: string;
+  filename: string;
+  size: number;
+  mimetype?: string;
+}
+
+export const uploadApi = {
+  uploadFile: async (file: File): Promise<UploadResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.post<ApiResponse<UploadResult> & { location?: string; url?: string; filename?: string; size?: number }>(
+      '/upload',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    const data = res.data;
+    const rawUrl = data.location || data.url || data.data?.location || data.data?.url || '';
+    const fullUrl = getBackendAssetUrl(rawUrl);
+    return {
+      location: fullUrl,
+      url: fullUrl,
+      filename: data.filename || data.data?.filename || file.name,
+      size: data.size || data.data?.size || file.size,
+      mimetype: data.data?.mimetype || file.type,
+    };
+  },
+};
+
 export default apiClient;

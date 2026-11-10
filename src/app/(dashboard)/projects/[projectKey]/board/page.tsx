@@ -35,6 +35,7 @@ export default function BoardPage() {
       {/* Board Filtering & Search Toolbar (Syncs with URL query params) */}
       <div className="shrink-0">
         <BoardToolbar
+          projectKey={projectKey}
           totalIssuesCount={totalCount}
           filteredIssuesCount={filteredCount}
         />

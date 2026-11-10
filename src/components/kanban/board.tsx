@@ -68,9 +68,19 @@ export function KanbanBoard({ projectKey = 'TYK', onCountsChange }: KanbanBoardP
 
       // 4. Assignee Filter
       if (assignee) {
-        const targetUserId = assignee === 'me' ? currentUser?.id : assignee;
-        if (targetUserId && issue.assignee?.id !== targetUserId) {
-          return false;
+        if (assignee === 'unassigned') {
+          if (issue.assignee || issue.assigneeId || issue.assignee_id) {
+            return false;
+          }
+        } else {
+          const targetUserId = assignee === 'me' ? currentUser?.id : assignee;
+          if (targetUserId) {
+            const issueAssigneeId =
+              issue.assignee?.id || issue.assigneeId || issue.assignee_id;
+            if (issueAssigneeId !== targetUserId) {
+              return false;
+            }
+          }
         }
       }
 
