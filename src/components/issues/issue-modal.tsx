@@ -248,8 +248,7 @@ function IssueModalForm({
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <form
-      onSubmit={handleSave}
+    <div
       className={cn(
         "flex flex-col w-full h-full overflow-hidden",
         isFullScreen ? "h-screen max-h-screen" : "max-h-[88vh]"
@@ -390,6 +389,12 @@ function IssueModalForm({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="What needs to be done?"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  handleSave(e);
+                }
+              }}
               className={cn(
                 "w-full resize-none bg-transparent font-bold placeholder:text-muted-foreground/60 border-0 focus:outline-none focus:ring-0 p-0 leading-snug",
                 isFullScreen ? "text-2xl lg:text-3xl" : "text-xl"
@@ -819,9 +824,10 @@ function IssueModalForm({
           Cancel
         </Button>
         <Button
-          type="submit"
+          type="button"
           size="sm"
           disabled={!title.trim() || isSaving}
+          onClick={handleSave}
           className="text-xs cursor-pointer"
         >
           {isSaving ? (
@@ -836,7 +842,7 @@ function IssueModalForm({
           )}
         </Button>
       </div>
-    </form>
+    </div>
   );
 }
 

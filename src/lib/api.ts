@@ -36,6 +36,96 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Response interceptor: automatically refresh access token on 401
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (err: unknown) => void;
+}> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/login') &&
+      !originalRequest.url?.includes('/auth/register') &&
+      !originalRequest.url?.includes('/auth/refresh')
+    ) {
+      if (typeof window === 'undefined') {
+        return Promise.reject(error);
+      }
+
+      const refreshToken = localStorage.getItem('tykket_refresh_token');
+      if (!refreshToken) {
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshRes = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          { refresh_token: refreshToken },
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+        const data = refreshRes.data?.data;
+        const newAccessToken = data?.tokens?.access_token;
+        const newRefreshToken = data?.tokens?.refresh_token;
+
+        if (newAccessToken) {
+          localStorage.setItem('tykket_auth_token', newAccessToken);
+          if (newRefreshToken) {
+            localStorage.setItem('tykket_refresh_token', newRefreshToken);
+          }
+          document.cookie = `tykket_auth_token=${newAccessToken}; path=/; max-age=604800; SameSite=Lax`;
+          window.dispatchEvent(new Event('tykket_auth_change'));
+
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          processQueue(null, newAccessToken);
+          return apiClient(originalRequest);
+        }
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        localStorage.removeItem('tykket_auth_token');
+        localStorage.removeItem('tykket_refresh_token');
+        localStorage.removeItem('tykket_auth_user');
+        window.dispatchEvent(new Event('tykket_auth_change'));
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Cache for project key -> project ID (UUID)
 const projectKeyToIdMap = new Map<string, string>();
 

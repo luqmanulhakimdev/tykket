@@ -71,14 +71,19 @@ export function IssueComments({ issueId, className }: IssueCommentsProps) {
   const [editingContent, setEditingContent] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleCreateComment = async (e?: React.FormEvent) => {
+  const handleCreateComment = async (e?: React.SyntheticEvent) => {
     e?.preventDefault();
+    e?.stopPropagation();
     const content = newComment.trim();
     if (!content || createMutation.isPending) return;
 
-    await createMutation.mutateAsync(content);
-    setNewComment('');
-    setIsInputFocused(false);
+    try {
+      await createMutation.mutateAsync(content);
+      setNewComment('');
+      setIsInputFocused(false);
+    } catch (err) {
+      console.error('Failed to post comment:', err);
+    }
   };
 
   const handleStartEdit = (comment: Comment) => {
@@ -96,15 +101,23 @@ export function IssueComments({ issueId, className }: IssueCommentsProps) {
     const content = editingContent.trim();
     if (!content || updateMutation.isPending) return;
 
-    await updateMutation.mutateAsync({ commentId, content });
-    setEditingId(null);
-    setEditingContent('');
+    try {
+      await updateMutation.mutateAsync({ commentId, content });
+      setEditingId(null);
+      setEditingContent('');
+    } catch (err) {
+      console.error('Failed to update comment:', err);
+    }
   };
 
   const handleDeleteComment = async (commentId: string) => {
     if (deleteMutation.isPending) return;
-    await deleteMutation.mutateAsync(commentId);
-    setDeletingId(null);
+    try {
+      await deleteMutation.mutateAsync(commentId);
+      setDeletingId(null);
+    } catch (err) {
+      console.error('Failed to delete comment:', err);
+    }
   };
 
   const currentUserName = currentUser?.name || 'You';
@@ -129,7 +142,7 @@ export function IssueComments({ issueId, className }: IssueCommentsProps) {
       </div>
 
       {/* New Comment Input Box */}
-      <form onSubmit={handleCreateComment} className="flex items-start gap-3">
+      <div className="flex items-start gap-3">
         <Avatar size="sm" className="h-7 w-7 mt-0.5 shrink-0 ring-1 ring-border">
           {currentUser?.avatarUrl || currentUser?.avatar_url ? (
             <AvatarImage
@@ -160,7 +173,8 @@ export function IssueComments({ issueId, className }: IssueCommentsProps) {
               onKeyDown={(e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                   e.preventDefault();
-                  handleCreateComment();
+                  e.stopPropagation();
+                  handleCreateComment(e);
                 }
               }}
             />
@@ -176,7 +190,9 @@ export function IssueComments({ issueId, className }: IssueCommentsProps) {
                     variant="ghost"
                     size="sm"
                     className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       setNewComment('');
                       setIsInputFocused(false);
                     }}
@@ -184,9 +200,14 @@ export function IssueComments({ issueId, className }: IssueCommentsProps) {
                     Cancel
                   </Button>
                   <Button
-                    type="submit"
+                    type="button"
                     size="sm"
                     disabled={!newComment.trim() || createMutation.isPending}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleCreateComment(e);
+                    }}
                     className="h-7 px-3 text-xs gap-1.5 cursor-pointer font-medium"
                   >
                     {createMutation.isPending ? (
@@ -201,7 +222,7 @@ export function IssueComments({ issueId, className }: IssueCommentsProps) {
             )}
           </div>
         </div>
-      </form>
+      </div>
 
       {/* Comments List */}
       <div className="space-y-3 pt-1">

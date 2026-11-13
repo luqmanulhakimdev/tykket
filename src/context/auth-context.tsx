@@ -19,6 +19,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const TOKEN_KEY = 'tykket_auth_token';
+const REFRESH_TOKEN_KEY = 'tykket_refresh_token';
 const USER_KEY = 'tykket_auth_user';
 
 let cachedRawUser: string | null = null;
@@ -75,13 +76,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const token = useSyncExternalStore(subscribeToAuth, getStoredToken, () => null);
   const user = useSyncExternalStore(subscribeToAuth, getStoredUser, () => null);
 
-  const saveAuthSession = (authToken: string, authUser: User) => {
+  const saveAuthSession = (authToken: string, authUser: User, refreshToken?: string) => {
     try {
       const rawUser = JSON.stringify(authUser);
       cachedRawUser = rawUser;
       cachedParsedUser = authUser;
       localStorage.setItem(TOKEN_KEY, authToken);
       localStorage.setItem(USER_KEY, rawUser);
+      if (refreshToken) {
+        localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      }
       document.cookie = `${TOKEN_KEY}=${authToken}; path=/; max-age=604800; SameSite=Lax`;
       window.dispatchEvent(new Event('tykket_auth_change'));
     } catch {
@@ -94,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSubmitting(true);
       try {
         const data = await authApi.login({ email, password });
-        saveAuthSession(data.tokens.access_token, data.user);
+        saveAuthSession(data.tokens.access_token, data.user, data.tokens.refresh_token);
 
         toast.success(`Welcome back, ${data.user.name}!`);
         router.push('/projects/TYK/board');
@@ -120,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email,
           password,
         });
-        saveAuthSession(data.tokens.access_token, data.user);
+        saveAuthSession(data.tokens.access_token, data.user, data.tokens.refresh_token);
         toast.success(`Logged in as ${data.user.name}`);
         router.push('/projects/TYK/board');
         router.refresh();
@@ -140,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSubmitting(true);
       try {
         const data = await authApi.register({ name, email, password });
-        saveAuthSession(data.tokens.access_token, data.user);
+        saveAuthSession(data.tokens.access_token, data.user, data.tokens.refresh_token);
 
         toast.success(`Account created! Welcome to Tykket, ${data.user.name}!`);
         router.push('/projects/TYK/board');
@@ -164,6 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cachedParsedUser = null;
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
       document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Lax`;
       window.dispatchEvent(new Event('tykket_auth_change'));
     } catch {
