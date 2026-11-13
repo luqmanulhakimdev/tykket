@@ -7,23 +7,30 @@ import {
   projectsApi,
   sprintsApi,
   commentsApi,
+  metricsApi,
   IssueFilterParams,
 } from '@/lib/api';
 import {
   CreateIssueInput,
   Issue,
   IssueStatus,
+  Project,
   ProjectMember,
   Sprint,
   UpdateIssueInput,
   Comment,
+  ProjectSummaryMetrics,
+  SprintMetrics,
 } from '@/types/issue';
 
 export const ISSUES_QUERY_KEY = 'issues';
+export const PROJECTS_QUERY_KEY = 'projects';
 export const TRASH_QUERY_KEY = 'issues-trash';
 export const MEMBERS_QUERY_KEY = 'project-members';
 export const SPRINTS_QUERY_KEY = 'project-sprints';
 export const COMMENTS_QUERY_KEY = 'issue-comments';
+export const METRICS_QUERY_KEY = 'project-metrics';
+export const BURNDOWN_QUERY_KEY = 'sprint-burndown';
 
 function getErrorMessage(err: unknown, fallback: string): string {
   if (err && typeof err === 'object') {
@@ -70,6 +77,19 @@ export function useIssues(projectKey = 'TYK', filterParams?: IssueFilterParams) 
 }
 
 /**
+ * Fetch projects list for workspace selector
+ */
+export function useProjects() {
+  return useQuery<Project[]>({
+    queryKey: [PROJECTS_QUERY_KEY],
+    queryFn: async () => {
+      return await projectsApi.list();
+    },
+    staleTime: 30000,
+  });
+}
+
+/**
  * Fetch project members for assignee selection
  */
 export function useProjectMembers(projectKey = 'TYK') {
@@ -92,6 +112,36 @@ export function useSprints(projectKey = 'TYK') {
       return await sprintsApi.list(projectKey);
     },
     staleTime: 30000,
+  });
+}
+
+/**
+ * Fetch project summary metrics from Go backend
+ */
+export function useProjectMetrics(projectKey = 'TYK') {
+  return useQuery<ProjectSummaryMetrics>({
+    queryKey: [METRICS_QUERY_KEY, projectKey],
+    queryFn: async () => {
+      return await metricsApi.getProjectMetrics(projectKey);
+    },
+    staleTime: 15000,
+  });
+}
+
+/**
+ * Fetch sprint burndown and metrics
+ */
+export function useSprintBurndown(projectKey = 'TYK', sprintId?: string) {
+  return useQuery<SprintMetrics>({
+    queryKey: [BURNDOWN_QUERY_KEY, projectKey, sprintId],
+    queryFn: async () => {
+      if (!sprintId) {
+        throw new Error('Sprint ID is required for burndown');
+      }
+      return await metricsApi.getSprintBurndown(projectKey, sprintId);
+    },
+    enabled: Boolean(sprintId),
+    staleTime: 15000,
   });
 }
 
@@ -352,8 +402,10 @@ export function useCreateCommentMutation(issueId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (content: string) => {
-      return await commentsApi.createComment(issueId, content);
+    mutationFn: async (input: string | { content: string; parentId?: string | null }) => {
+      const content = typeof input === 'string' ? input : input.content;
+      const parentId = typeof input === 'string' ? undefined : input.parentId;
+      return await commentsApi.createComment(issueId, content, parentId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [COMMENTS_QUERY_KEY, issueId] });
@@ -407,6 +459,191 @@ export function useDeleteCommentMutation(issueId: string) {
     onError: (err: unknown) => {
       toast.error('Failed to delete comment', {
         description: getErrorMessage(err, 'Failed to delete comment'),
+      });
+    },
+  });
+}
+
+/**
+ * Create project mutation
+ */
+export function useCreateProjectMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { name: string; key: string; description?: string }) => {
+      return await projectsApi.create(data);
+    },
+    onSuccess: (newProject) => {
+      queryClient.invalidateQueries({ queryKey: [PROJECTS_QUERY_KEY] });
+      toast.success(`Project "${newProject.name}" created successfully!`);
+    },
+    onError: (err: unknown) => {
+      toast.error('Failed to create project', {
+        description: getErrorMessage(err, 'Failed to create project'),
+      });
+    },
+  });
+}
+
+/**
+ * Create sprint mutation
+ */
+export function useCreateSprintMutation(projectKey = 'TYK') {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      name: string;
+      goal?: string;
+      start_date?: string;
+      end_date?: string;
+    }) => {
+      return await sprintsApi.create(projectKey, data);
+    },
+    onSuccess: (newSprint) => {
+      queryClient.invalidateQueries({ queryKey: [SPRINTS_QUERY_KEY, projectKey] });
+      toast.success(`Sprint "${newSprint.name}" created successfully!`);
+    },
+    onError: (err: unknown) => {
+      toast.error('Failed to create sprint', {
+        description: getErrorMessage(err, 'Failed to create sprint'),
+      });
+    },
+  });
+}
+
+/**
+ * Start sprint mutation
+ */
+export function useStartSprintMutation(projectKey = 'TYK') {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      sprintId,
+      data,
+    }: {
+      sprintId: string;
+      data?: { start_date?: string; end_date?: string };
+    }) => {
+      return await sprintsApi.start(projectKey, sprintId, data);
+    },
+    onSuccess: (sprint) => {
+      queryClient.invalidateQueries({ queryKey: [SPRINTS_QUERY_KEY, projectKey] });
+      queryClient.invalidateQueries({ queryKey: [ISSUES_QUERY_KEY, projectKey] });
+      toast.success(`Sprint "${sprint.name}" is now ACTIVE!`);
+    },
+    onError: (err: unknown) => {
+      toast.error('Failed to start sprint', {
+        description: getErrorMessage(err, 'Failed to start sprint'),
+      });
+    },
+  });
+}
+
+/**
+ * Complete sprint mutation
+ */
+export function useCompleteSprintMutation(projectKey = 'TYK') {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      sprintId,
+      moveIncompleteToSprintId,
+    }: {
+      sprintId: string;
+      moveIncompleteToSprintId?: string;
+    }) => {
+      return await sprintsApi.complete(projectKey, sprintId, {
+        move_incomplete_to_sprint_id: moveIncompleteToSprintId,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [SPRINTS_QUERY_KEY, projectKey] });
+      queryClient.invalidateQueries({ queryKey: [ISSUES_QUERY_KEY, projectKey] });
+      toast.success('Sprint completed successfully!');
+    },
+    onError: (err: unknown) => {
+      toast.error('Failed to complete sprint', {
+        description: getErrorMessage(err, 'Failed to complete sprint'),
+      });
+    },
+  });
+}
+
+/**
+ * Update sprint mutation (name, goal, dates)
+ */
+export function useUpdateSprintMutation(projectKey = 'TYK') {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      sprintId,
+      data,
+    }: {
+      sprintId: string;
+      data: { name: string; goal?: string; start_date?: string; end_date?: string };
+    }) => {
+      return await sprintsApi.update(projectKey, sprintId, data);
+    },
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: [SPRINTS_QUERY_KEY, projectKey] });
+      queryClient.invalidateQueries({ queryKey: [ISSUES_QUERY_KEY, projectKey] });
+      toast.success(`Sprint "${updated.name}" updated successfully!`);
+    },
+    onError: (err: unknown) => {
+      toast.error('Failed to update sprint', {
+        description: getErrorMessage(err, 'Failed to update sprint'),
+      });
+    },
+  });
+}
+
+/**
+ * Delete sprint mutation
+ */
+export function useDeleteSprintMutation(projectKey = 'TYK') {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (sprintId: string) => {
+      await sprintsApi.delete(projectKey, sprintId);
+      return sprintId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [SPRINTS_QUERY_KEY, projectKey] });
+      queryClient.invalidateQueries({ queryKey: [ISSUES_QUERY_KEY, projectKey] });
+      toast.success('Sprint deleted successfully!');
+    },
+    onError: (err: unknown) => {
+      toast.error('Failed to delete sprint', {
+        description: getErrorMessage(err, 'Failed to delete sprint'),
+      });
+    },
+  });
+}
+
+/**
+ * Bulk move issues to sprint or backlog
+ */
+export function useBulkMoveSprintMutation(projectKey = 'TYK') {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { issue_ids: string[]; sprint_id: string | null }) => {
+      await sprintsApi.bulkMove(projectKey, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [SPRINTS_QUERY_KEY, projectKey] });
+      queryClient.invalidateQueries({ queryKey: [ISSUES_QUERY_KEY, projectKey] });
+      toast.success('Issue sprint assignment updated!');
+    },
+    onError: (err: unknown) => {
+      toast.error('Failed to update issue sprint', {
+        description: getErrorMessage(err, 'Failed to update issue sprint'),
       });
     },
   });

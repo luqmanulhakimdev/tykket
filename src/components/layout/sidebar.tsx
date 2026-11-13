@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   ListTree,
@@ -10,13 +10,17 @@ import {
   ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   Trash2,
   LogOut,
+  Check,
+  Plus,
+  FolderKanban,
+  BarChart3,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useTrashIssues } from '@/hooks/use-issues';
+import { useTrashIssues, useProjects } from '@/hooks/use-issues';
 import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
 
@@ -36,45 +40,66 @@ interface SidebarProps {
 
 export function Sidebar({ projectKey = 'TYK' }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const { user, logout } = useAuth();
   const currentUser = user || {
     id: 'guest',
     name: 'Tykket User',
     email: 'user@tykket.dev',
   };
-  const { data: trashIssues = [] } = useTrashIssues(projectKey);
+  const { data: projects = [] } = useProjects();
+
+  // Dynamically resolve active project key from current URL pathname (/projects/[projectKey]/...)
+  const urlProjectKey = pathname?.match(/\/projects\/([^/]+)/)?.[1] || projectKey;
+
+  const currentProject = projects.find(
+    (p) => p.key?.toUpperCase() === urlProjectKey?.toUpperCase() || p.id === urlProjectKey
+  );
+  const activeProjectKey = currentProject?.key || urlProjectKey;
+  const activeProjectName = currentProject?.name || activeProjectKey;
+  const activeProjectAvatar = activeProjectKey.slice(0, 2).toUpperCase();
+
+  const { data: trashIssues = [] } = useTrashIssues(activeProjectKey);
 
   const navItems = [
     {
       title: 'Kanban Board',
-      href: `/projects/${projectKey}/board`,
+      href: `/projects/${activeProjectKey}/board`,
       icon: LayoutDashboard,
       active: pathname?.includes('/board'),
     },
     {
       title: 'Backlog',
-      href: `/projects/${projectKey}/backlog`,
+      href: `/projects/${activeProjectKey}/backlog`,
       icon: ListTree,
       active: pathname?.includes('/backlog'),
     },
     {
+      title: 'Reports & Metrics',
+      href: `/projects/${activeProjectKey}/reports`,
+      icon: BarChart3,
+      active: pathname?.includes('/reports'),
+    },
+    {
       title: 'Trash Bin',
-      href: `/projects/${projectKey}/trash`,
+      href: `/projects/${activeProjectKey}/trash`,
       icon: Trash2,
       active: pathname?.includes('/trash'),
       badge: trashIssues.length > 0 ? trashIssues.length : undefined,
     },
     {
       title: 'Settings',
-      href: `/projects/${projectKey}/settings`,
+      href: `/projects/${activeProjectKey}/settings`,
       icon: Settings,
       active: pathname?.includes('/settings'),
     },
   ];
 
   return (
-    <aside
+    <>
+      <aside
       className={cn(
         'relative flex flex-col border-r border-border/70 bg-card/60 backdrop-blur-md transition-all duration-200 z-20 shrink-0 h-screen select-none',
         collapsed ? 'w-16' : 'w-60'
@@ -90,50 +115,92 @@ export function Sidebar({ projectKey = 'TYK' }: SidebarProps) {
             )}
           >
             <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-xs shrink-0 tracking-wider">
-              TY
+              {activeProjectAvatar}
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-semibold text-xs text-foreground truncate">Tykket</span>
+                  <span className="font-semibold text-xs text-foreground truncate">{activeProjectName}</span>
                   <span className="text-[10px] font-mono text-muted-foreground uppercase px-1 py-0 bg-muted rounded">
-                    {projectKey}
+                    {activeProjectKey}
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground truncate">Engineering Core</p>
+                <p className="text-[11px] text-muted-foreground truncate">{currentProject?.description || 'Workspace'}</p>
               </div>
             )}
             {!collapsed && <ChevronsUpDown size={14} className="text-muted-foreground shrink-0" />}
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="start" className="w-56 p-1.5">
+          <DropdownMenuContent align="start" className="w-60 p-1.5">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Workspaces & Projects
               </DropdownMenuLabel>
-              <DropdownMenuItem className="gap-2 cursor-pointer text-xs">
-                <div className="h-5 w-5 rounded bg-primary text-primary-foreground flex items-center justify-center font-bold text-[10px]">
-                  TY
-                </div>
-                <div className="flex-1 truncate">
-                  <p className="font-medium leading-none">Tykket</p>
-                  <p className="text-[10px] text-muted-foreground">Key: TYK</p>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2 cursor-pointer text-xs opacity-70">
-                <div className="h-5 w-5 rounded bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">
-                  IN
-                </div>
-                <div className="flex-1 truncate">
-                  <p className="font-medium leading-none">Infra Cloud</p>
-                  <p className="text-[10px] text-muted-foreground">Key: INF</p>
-                </div>
-              </DropdownMenuItem>
+              {projects.length > 0 ? (
+                projects.map((p) => {
+                  const isSelected =
+                    p.key?.toUpperCase() === activeProjectKey?.toUpperCase() || p.id === activeProjectKey;
+                  const pAvatar = (p.key || p.name).slice(0, 2).toUpperCase();
+                  return (
+                    <DropdownMenuItem
+                      key={p.id}
+                      onClick={() => router.push(`/projects/${p.key || p.id}/board`)}
+                      className={cn(
+                        'gap-2.5 cursor-pointer text-xs py-2 px-2.5 rounded-md transition-colors',
+                        isSelected && 'bg-muted font-semibold text-foreground'
+                      )}
+                    >
+                      <div className="h-6 w-6 rounded bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-[10px] shrink-0">
+                        {pAvatar}
+                      </div>
+                      <div className="flex-1 truncate">
+                        <p className="font-medium leading-none truncate">{p.name}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Key: {p.key}</p>
+                      </div>
+                      {isSelected && <Check size={14} className="text-primary shrink-0 ml-1" />}
+                    </DropdownMenuItem>
+                  );
+                })
+              ) : (
+                <DropdownMenuItem
+                  onClick={() => router.push(`/projects/${activeProjectKey}/board`)}
+                  className="gap-2 cursor-pointer text-xs py-2"
+                >
+                  <div className="h-6 w-6 rounded bg-primary text-primary-foreground flex items-center justify-center font-bold text-[10px]">
+                    {activeProjectAvatar}
+                  </div>
+                  <div className="flex-1 truncate">
+                    <p className="font-medium leading-none">{activeProjectName}</p>
+                    <p className="text-[10px] text-muted-foreground">Key: {activeProjectKey}</p>
+                  </div>
+                  <Check size={14} className="text-primary shrink-0 ml-1" />
+                </DropdownMenuItem>
+              )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 text-xs text-muted-foreground cursor-pointer">
-              <Sparkles size={14} />
-              Create Project...
+            <DropdownMenuItem
+              onClick={() => router.push('/projects')}
+              className="gap-2.5 cursor-pointer text-xs py-2 px-2.5 hover:bg-muted font-medium"
+            >
+              <div className="h-6 w-6 rounded bg-muted text-foreground border border-border/60 flex items-center justify-center font-bold text-xs shrink-0">
+                <FolderKanban size={13} />
+              </div>
+              <div className="flex-1 truncate">
+                <p className="font-semibold leading-none">All Projects</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Browse project workspaces</p>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setIsCreateProjectOpen(true)}
+              className="gap-2.5 cursor-pointer text-xs py-2 px-2.5 text-primary hover:text-primary font-medium focus:text-primary"
+            >
+              <div className="h-6 w-6 rounded bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-xs shrink-0">
+                <Plus size={13} />
+              </div>
+              <div className="flex-1 truncate">
+                <p className="font-semibold leading-none">Create New Project</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Start a new workspace</p>
+              </div>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -248,5 +315,7 @@ export function Sidebar({ projectKey = 'TYK' }: SidebarProps) {
         </DropdownMenu>
       </div>
     </aside>
+    <CreateProjectDialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen} />
+    </>
   );
 }

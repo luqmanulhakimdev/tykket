@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { KanbanBoard } from '@/components/kanban/board';
 import { BoardToolbar } from '@/components/kanban/board-toolbar';
+import { ActiveSprintBanner } from '@/components/kanban/active-sprint-banner';
 import { Badge } from '@/components/ui/badge';
 
 export default function BoardPage() {
@@ -40,6 +41,9 @@ export default function BoardPage() {
           filteredIssuesCount={filteredCount}
         />
       </div>
+
+      {/* Running Sprint Status Banner */}
+      <ActiveSprintBanner projectKey={projectKey} />
 
       {/* Main Kanban Board Canvas */}
       <div className="flex-1 min-h-0 overflow-hidden">

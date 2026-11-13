@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Issue, IssuePriority, IssueStatus } from '@/types/issue';
+import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
+import { Issue, IssuePriority, IssueStatus, Sprint } from '@/types/issue';
 import { IssueTypeIcon } from '@/components/issues/issue-type-icon';
 import { IssuePriorityIcon, issuePriorityOptions } from '@/components/issues/issue-priority-icon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,6 +13,7 @@ import {
   Trash2,
   Plus,
   Check,
+  GripVertical,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -42,10 +44,13 @@ interface IssueRowProps {
   level?: number;
   hasChildren?: boolean;
   isExpanded?: boolean;
+  sprints?: Sprint[];
+  dragHandleProps?: DraggableProvidedDragHandleProps | null;
   onToggleExpand?: () => void;
   onTitleChange?: (id: string, newTitle: string) => void;
   onStatusChange?: (id: string, newStatus: IssueStatus) => void;
   onPriorityChange?: (id: string, newPriority: IssuePriority) => void;
+  onSprintChange?: (id: string, sprintId: string | null) => void;
   onDelete?: (id: string) => void;
   onAddChild?: (parentId: string) => void;
   onClick?: (issue: Issue) => void;
@@ -64,16 +69,26 @@ export function IssueRow({
   level = 0,
   hasChildren = false,
   isExpanded = true,
+  sprints,
+  dragHandleProps,
   onToggleExpand,
   onTitleChange,
   onStatusChange,
   onPriorityChange,
+  onSprintChange,
   onDelete,
   onAddChild,
   onClick,
 }: IssueRowProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(issue.title);
+
+  const storyPoints = issue.storyPoints ?? issue.story_points;
+  const hasStoryPoints = typeof storyPoints === 'number';
+
+  const assignedSprint = sprints?.find(
+    (s) => s.id === (issue.sprintId || issue.sprint_id)
+  );
 
   const handleTitleSubmit = () => {
     setIsEditingTitle(false);
@@ -87,7 +102,7 @@ export function IssueRow({
   return (
     <div
       className={cn(
-        'group relative flex items-center justify-between py-2.5 px-3 hover:bg-muted/50 border-b border-border/40 text-sm transition-colors',
+        'group relative flex items-center justify-between py-2 px-3 hover:bg-muted/50 border-b border-border/40 text-sm transition-colors',
         level > 0 && 'bg-muted/10'
       )}
       style={{ paddingLeft: `${Math.max(12, level * 28 + 12)}px` }}
@@ -105,8 +120,19 @@ export function IssueRow({
         />
       )}
 
-      {/* Left side: Expand caret, Type, Key, Editable Title */}
-      <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-4">
+      {/* Left side: Drag handle, Expand caret, Type, Key, Editable Title */}
+      <div className="flex items-center gap-2 min-w-0 flex-1 mr-4">
+        {/* Drag Handle */}
+        {dragHandleProps && (
+          <div
+            {...dragHandleProps}
+            className="cursor-grab active:cursor-grabbing text-muted-foreground/35 hover:text-foreground hover:bg-muted/70 p-1 rounded transition-colors shrink-0 flex items-center justify-center"
+            title="Drag ticket to assign to sprint"
+          >
+            <GripVertical size={13} />
+          </div>
+        )}
+
         {/* Expand / Collapse button */}
         {hasChildren ? (
           <button
@@ -200,6 +226,53 @@ export function IssueRow({
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* Sprint Selector Dropdown */}
+        {sprints && sprints.length > 0 && onSprintChange && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              type="button"
+              className={cn(
+                'text-[10px] font-mono px-2 py-0.5 rounded-md border cursor-pointer inline-flex items-center gap-1 transition-colors outline-none max-w-[110px] truncate',
+                assignedSprint
+                  ? assignedSprint.status === 'ACTIVE'
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-semibold'
+                    : 'bg-muted/70 text-foreground border-border/80'
+                  : 'text-muted-foreground/60 border-dashed border-border/60 hover:text-foreground'
+              )}
+              title={assignedSprint ? `Sprint: ${assignedSprint.name}` : 'Move to Sprint'}
+            >
+              <span className="truncate">{assignedSprint ? assignedSprint.name : 'Backlog'}</span>
+              <ChevronDown size={9} className="opacity-60 shrink-0" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 p-1 bg-popover/95 backdrop-blur-md shadow-xl border-border">
+              <DropdownMenuItem
+                onClick={() => onSprintChange(issue.id, null)}
+                className="flex items-center justify-between text-xs py-1.5 px-2 cursor-pointer hover:bg-muted rounded-md"
+              >
+                <span className="text-muted-foreground">Backlog (No Sprint)</span>
+                {!assignedSprint && <Check size={12} className="text-primary" />}
+              </DropdownMenuItem>
+              {sprints.map((s) => (
+                <DropdownMenuItem
+                  key={s.id}
+                  onClick={() => onSprintChange(issue.id, s.id)}
+                  className="flex items-center justify-between text-xs py-1.5 px-2 cursor-pointer hover:bg-muted rounded-md"
+                >
+                  <div className="flex items-center gap-2 truncate min-w-0">
+                    <span className={cn('truncate', assignedSprint?.id === s.id && 'font-semibold text-foreground')}>
+                      {s.name}
+                    </span>
+                    <span className="text-[9px] uppercase font-mono text-muted-foreground">
+                      ({s.status})
+                    </span>
+                  </div>
+                  {assignedSprint?.id === s.id && <Check size={12} className="text-primary ml-1 shrink-0" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
         {/* Beautified Priority Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -226,6 +299,23 @@ export function IssueRow({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Story Points Indicator */}
+        <div
+          className="flex items-center justify-center shrink-0 w-8"
+          title={hasStoryPoints ? `Story Points: ${storyPoints}` : 'Story Points: Unestimated'}
+        >
+          <span
+            className={cn(
+              'h-5 min-w-[20px] px-1.5 rounded-full text-[10px] font-mono font-semibold flex items-center justify-center border transition-colors',
+              hasStoryPoints
+                ? 'bg-muted/80 text-foreground border-border/80 shadow-2xs'
+                : 'text-muted-foreground/40 border-dashed border-border/60 bg-muted/20'
+            )}
+          >
+            {hasStoryPoints ? storyPoints : '—'}
+          </span>
+        </div>
 
         {/* Assignee Avatar */}
         <div className="w-6 flex justify-center">

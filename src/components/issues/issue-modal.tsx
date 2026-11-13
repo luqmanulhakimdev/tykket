@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useSyncExternalStore } from 'react';
+import { usePathname } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -18,9 +19,11 @@ import {
   useUpdateIssueMutation,
   useDeleteIssueMutation,
   useProjectMembers,
+  useSprints,
   ISSUES_QUERY_KEY,
+  SPRINTS_QUERY_KEY,
 } from '@/hooks/use-issues';
-import { issuesApi } from '@/lib/api';
+import { issuesApi, sprintsApi } from '@/lib/api';
 import {
   X,
   Plus,
@@ -35,6 +38,7 @@ import {
   Loader2,
   Maximize2,
   Minimize2,
+  Timer,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -88,11 +92,15 @@ function IssueModalForm({
   onToggleFullScreen,
 }: IssueModalFormProps) {
   const queryClient = useQueryClient();
-  const projectKey = 'TYK';
+  const pathname = usePathname();
+  const urlProjectKey = pathname?.match(/\/projects\/([^/]+)/)?.[1];
+  const projectKey =
+    issueToEdit?.key?.split('-')[0] || urlProjectKey || 'TYK';
 
-  // Load issues and members from live Go backend
+  // Load issues, members and sprints from live Go backend
   const { data: issues = [] } = useIssues(projectKey);
   const { data: projectMembers = [] } = useProjectMembers(projectKey);
+  const { data: sprints = [] } = useSprints(projectKey);
 
   const availableUsers: User[] = useMemo(() => {
     if (projectMembers.length > 0) {
@@ -124,6 +132,9 @@ function IssueModalForm({
     issueToEdit
       ? issueToEdit.parentId || issueToEdit.parent_id || ''
       : defaultParentId || ''
+  );
+  const [sprintId, setSprintId] = useState<string>(
+    issueToEdit?.sprintId || issueToEdit?.sprint_id || ''
   );
   const [storyPoints, setStoryPoints] = useState<number | ''>(
     issueToEdit?.storyPoints ?? issueToEdit?.story_points ?? ''
@@ -169,6 +180,11 @@ function IssueModalForm({
     [issues, parentId]
   );
 
+  const selectedSprint = useMemo(
+    () => sprints.find((s) => s.id === sprintId) || null,
+    [sprints, sprintId]
+  );
+
   // Mutations
   const createMutation = useCreateIssueMutation(projectKey);
   const updateMutation = useUpdateIssueMutation(projectKey);
@@ -180,6 +196,9 @@ function IssueModalForm({
     if (!title.trim()) return;
 
     if (issueToEdit) {
+      const prevSprintId = issueToEdit.sprintId || issueToEdit.sprint_id || '';
+      const hasSprintChanged = prevSprintId !== (sprintId || '');
+
       await updateMutation.mutateAsync({
         id: issueToEdit.id,
         data: {
@@ -190,9 +209,24 @@ function IssueModalForm({
           priority,
           assigneeId: assigneeId || undefined,
           parentId: parentId || undefined,
+          sprintId: sprintId ? sprintId : undefined,
           storyPoints: storyPoints !== '' ? Number(storyPoints) : undefined,
         },
       });
+
+      // If issue was unassigned from sprint to backlog
+      if (hasSprintChanged && !sprintId && prevSprintId) {
+        try {
+          await sprintsApi.bulkMove(projectKey, {
+            issue_ids: [issueToEdit.id],
+            sprint_id: null,
+          });
+          queryClient.invalidateQueries({ queryKey: [SPRINTS_QUERY_KEY, projectKey] });
+          queryClient.invalidateQueries({ queryKey: [ISSUES_QUERY_KEY, projectKey] });
+        } catch {
+          // ignore bulkMove error if handled by update
+        }
+      }
     } else {
       await createMutation.mutateAsync({
         title: title.trim(),
@@ -202,6 +236,7 @@ function IssueModalForm({
         priority,
         assigneeId: assigneeId || undefined,
         parentId: parentId || undefined,
+        sprintId: sprintId || undefined,
         storyPoints: storyPoints !== '' ? Number(storyPoints) : undefined,
       });
     }
@@ -754,6 +789,79 @@ function IssueModalForm({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Sprint Selector */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <Timer size={13} className="text-muted-foreground" />
+                <span>Sprint</span>
+              </label>
+              {selectedSprint?.status === 'ACTIVE' && (
+                <Badge
+                  variant="outline"
+                  className="text-[9px] px-1.5 py-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-semibold"
+                >
+                  ACTIVE
+                </Badge>
+              )}
+            </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                type="button"
+                className="w-full flex items-center justify-between bg-background border border-border/80 hover:border-primary/50 px-3 py-2 rounded-lg text-xs font-medium shadow-2xs transition-all hover:bg-muted/40 outline-none cursor-pointer group"
+              >
+                <div className="flex items-center gap-2 truncate min-w-0">
+                  <span
+                    className={cn(
+                      'truncate font-semibold',
+                      selectedSprint ? 'text-foreground' : 'text-muted-foreground font-normal'
+                    )}
+                  >
+                    {selectedSprint ? selectedSprint.name : 'Backlog (No Sprint)'}
+                  </span>
+                </div>
+                <ChevronDown
+                  size={13}
+                  className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0"
+                />
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="start" className="w-56 p-1 bg-popover/95 backdrop-blur-md shadow-xl border-border">
+                <DropdownMenuItem
+                  onClick={() => setSprintId('')}
+                  className="flex items-center justify-between text-xs py-2 px-2.5 rounded-md cursor-pointer hover:bg-muted transition-colors"
+                >
+                  <span className={cn('text-muted-foreground', !sprintId && 'font-semibold text-foreground')}>
+                    Backlog (No Sprint)
+                  </span>
+                  {!sprintId && <Check size={14} className="text-primary shrink-0" />}
+                </DropdownMenuItem>
+
+                {sprints.map((s) => (
+                  <DropdownMenuItem
+                    key={s.id}
+                    onClick={() => setSprintId(s.id)}
+                    className="flex items-center justify-between text-xs py-2 px-2.5 rounded-md cursor-pointer hover:bg-muted transition-colors"
+                  >
+                    <div className="flex items-center gap-2 truncate min-w-0">
+                      <span className={cn('truncate', sprintId === s.id && 'font-semibold text-foreground')}>
+                        {s.name}
+                      </span>
+                      <Badge
+                        variant={s.status === 'ACTIVE' ? 'default' : 'secondary'}
+                        className="text-[9px] px-1 py-0 uppercase font-mono shrink-0"
+                      >
+                        {s.status}
+                      </Badge>
+                    </div>
+                    {sprintId === s.id && <Check size={14} className="text-primary shrink-0 ml-1.5" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Story Points */}

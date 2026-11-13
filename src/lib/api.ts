@@ -12,6 +12,8 @@ import {
   normalizeIssue,
   Comment,
   normalizeComment,
+  ProjectSummaryMetrics,
+  SprintMetrics,
 } from '@/types/issue';
 
 export const API_BASE_URL =
@@ -342,6 +344,84 @@ export const sprintsApi = {
     );
     return res.data.data;
   },
+
+  update: async (
+    projectIdOrKey: string,
+    sprintId: string,
+    data: { name: string; goal?: string; start_date?: string; end_date?: string }
+  ): Promise<Sprint> => {
+    const id = await resolveProjectId(projectIdOrKey);
+    const res: AxiosResponse<ApiResponse<Sprint>> = await apiClient.put(
+      `/projects/${id}/sprints/${sprintId}`,
+      data
+    );
+    return res.data.data;
+  },
+
+  delete: async (
+    projectIdOrKey: string,
+    sprintId: string
+  ): Promise<void> => {
+    const id = await resolveProjectId(projectIdOrKey);
+    await apiClient.delete(`/projects/${id}/sprints/${sprintId}`);
+  },
+
+  bulkMove: async (
+    projectIdOrKey: string,
+    data: { issue_ids: string[]; sprint_id: string | null }
+  ): Promise<void> => {
+    const id = await resolveProjectId(projectIdOrKey);
+    await apiClient.post(`/projects/${id}/sprints/bulk-move`, data);
+  },
+};
+
+// ----------------------------------------------------------------------
+// Metrics & Reporting API
+// ----------------------------------------------------------------------
+export const metricsApi = {
+  getProjectMetrics: async (projectIdOrKey: string): Promise<ProjectSummaryMetrics> => {
+    const id = await resolveProjectId(projectIdOrKey);
+    const res: AxiosResponse<ApiResponse<ProjectSummaryMetrics>> = await apiClient.get(
+      `/projects/${id}/metrics`
+    );
+    return res.data.data;
+  },
+
+  getSprintBurndown: async (
+    projectIdOrKey: string,
+    sprintId: string
+  ): Promise<SprintMetrics> => {
+    const id = await resolveProjectId(projectIdOrKey);
+    const res: AxiosResponse<ApiResponse<SprintMetrics>> = await apiClient.get(
+      `/projects/${id}/sprints/${sprintId}/burndown`
+    );
+    return res.data.data;
+  },
+
+  exportCSV: async (
+    projectIdOrKey: string,
+    filters?: {
+      sprint_id?: string;
+      in_backlog?: boolean;
+      status?: string;
+      assignee_id?: string;
+    }
+  ): Promise<Blob> => {
+    const id = await resolveProjectId(projectIdOrKey);
+    const res = await apiClient.get(`/projects/${id}/export/csv`, {
+      params: filters,
+      responseType: 'blob',
+    });
+    return res.data;
+  },
+
+  exportSummary: async (projectIdOrKey: string): Promise<Record<string, unknown>> => {
+    const id = await resolveProjectId(projectIdOrKey);
+    const res: AxiosResponse<ApiResponse<Record<string, unknown>>> = await apiClient.get(
+      `/projects/${id}/export/summary`
+    );
+    return res.data.data;
+  },
 };
 
 // ----------------------------------------------------------------------
@@ -616,10 +696,18 @@ export const commentsApi = {
     }
   },
 
-  createComment: async (issueId: string, content: string): Promise<Comment> => {
+  createComment: async (
+    issueId: string,
+    content: string,
+    parentId?: string | null
+  ): Promise<Comment> => {
+    const payload: { content: string; parent_id?: string } = { content };
+    if (parentId) {
+      payload.parent_id = parentId;
+    }
     const res: AxiosResponse<ApiResponse<Record<string, unknown>>> = await apiClient.post(
       `/issues/${issueId}/comments`,
-      { content }
+      payload
     );
     return normalizeComment(res.data.data);
   },

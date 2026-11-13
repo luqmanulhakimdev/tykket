@@ -1,10 +1,17 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { Issue, IssuePriority, IssueStatus } from '@/types/issue';
 import { IssueRow } from './issue-row';
 import { useIssueModal } from '@/context/issue-modal-context';
-import { useDeleteIssueMutation, useUpdateIssueMutation } from '@/hooks/use-issues';
+import {
+  useDeleteIssueMutation,
+  useUpdateIssueMutation,
+  useSprints,
+  useBulkMoveSprintMutation,
+} from '@/hooks/use-issues';
+import { cn } from '@/lib/utils';
 
 interface BacklogTreeProps {
   issues: Issue[];
@@ -12,7 +19,11 @@ interface BacklogTreeProps {
   projectKey?: string;
 }
 
-export function BacklogTree({ issues, selectedEpicId, projectKey = 'TYK' }: BacklogTreeProps) {
+export function BacklogTree({
+  issues,
+  selectedEpicId,
+  projectKey = 'TYK',
+}: BacklogTreeProps) {
   const { openEditModal, openCreateModal } = useIssueModal();
 
   // Expansion tracking: issueId -> boolean
@@ -25,13 +36,22 @@ export function BacklogTree({ issues, selectedEpicId, projectKey = 'TYK' }: Back
     }));
   };
 
-  const isExpanded = (id: string) => {
-    return expandedMap[id] !== false; // default expanded
-  };
+  const isExpanded = useCallback(
+    (id: string) => {
+      return expandedMap[id] !== false; // default expanded
+    },
+    [expandedMap]
+  );
 
   // Live mutations hooked to Go backend
   const updateMutation = useUpdateIssueMutation(projectKey);
   const deleteMutation = useDeleteIssueMutation(projectKey);
+  const { data: sprints = [] } = useSprints(projectKey);
+  const bulkMoveMutation = useBulkMoveSprintMutation(projectKey);
+
+  const handleSprintChange = (id: string, sprintId: string | null) => {
+    bulkMoveMutation.mutate({ issue_ids: [id], sprint_id: sprintId });
+  };
 
   // Helper maps for building hierarchy
   const { epics, childrenByParentId, unparentedIssues } = useMemo(() => {
@@ -40,13 +60,14 @@ export function BacklogTree({ issues, selectedEpicId, projectKey = 'TYK' }: Back
     const unparented: Issue[] = [];
 
     issues.forEach((iss) => {
+      const pId = iss.parentId || iss.parent_id;
       if (iss.type === 'EPIC') {
         epicsList.push(iss);
-      } else if (iss.parentId) {
-        if (!childrenMap[iss.parentId]) {
-          childrenMap[iss.parentId] = [];
+      } else if (pId) {
+        if (!childrenMap[pId]) {
+          childrenMap[pId] = [];
         }
-        childrenMap[iss.parentId].push(iss);
+        childrenMap[pId].push(iss);
       } else {
         unparented.push(iss);
       }
@@ -73,6 +94,40 @@ export function BacklogTree({ issues, selectedEpicId, projectKey = 'TYK' }: Back
     return unparentedIssues;
   }, [unparentedIssues, selectedEpicId]);
 
+  // Precompute stable 0..N-1 indexes for rendered Draggables
+  const issueIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    let idx = 0;
+
+    displayedEpics.forEach((epic) => {
+      map.set(epic.id, idx++);
+      const epicChildren = childrenByParentId[epic.id] || [];
+      if (isExpanded(epic.id)) {
+        epicChildren.forEach((child) => {
+          map.set(child.id, idx++);
+          const subtasks = childrenByParentId[child.id] || [];
+          if (isExpanded(child.id)) {
+            subtasks.forEach((subtask) => {
+              map.set(subtask.id, idx++);
+            });
+          }
+        });
+      }
+    });
+
+    displayedUnparented.forEach((issue) => {
+      map.set(issue.id, idx++);
+      const subtasks = childrenByParentId[issue.id] || [];
+      if (isExpanded(issue.id)) {
+        subtasks.forEach((subtask) => {
+          map.set(subtask.id, idx++);
+        });
+      }
+    });
+
+    return map;
+  }, [displayedEpics, displayedUnparented, childrenByParentId, isExpanded]);
+
   const handleTitleChange = (id: string, newTitle: string) => {
     updateMutation.mutate({ id, data: { title: newTitle } });
   };
@@ -98,6 +153,53 @@ export function BacklogTree({ issues, selectedEpicId, projectKey = 'TYK' }: Back
     }
   };
 
+  // Helper to render a draggable issue row
+  const renderDraggableRow = (
+    issue: Issue,
+    level: number,
+    options: {
+      hasChildren?: boolean;
+      isExpanded?: boolean;
+      onToggleExpand?: () => void;
+      onAddChild?: (id: string) => void;
+    } = {}
+  ) => {
+    const index = issueIndexMap.get(issue.id) ?? 0;
+
+    return (
+      <Draggable key={issue.id} draggableId={issue.id} index={index}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            className={cn(
+              'transition-shadow',
+              snapshot.isDragging &&
+                'bg-card/95 shadow-2xl ring-2 ring-primary/50 rounded-md z-50 select-none opacity-95'
+            )}
+          >
+            <IssueRow
+              issue={issue}
+              level={level}
+              hasChildren={options.hasChildren}
+              isExpanded={options.isExpanded}
+              sprints={sprints}
+              dragHandleProps={provided.dragHandleProps}
+              onToggleExpand={options.onToggleExpand}
+              onTitleChange={handleTitleChange}
+              onStatusChange={handleStatusChange}
+              onPriorityChange={handlePriorityChange}
+              onSprintChange={handleSprintChange}
+              onDelete={handleDelete}
+              onAddChild={options.onAddChild}
+              onClick={openEditModal}
+            />
+          </div>
+        )}
+      </Draggable>
+    );
+  };
+
   return (
     <div className="flex-1 overflow-y-auto bg-background">
       {/* Table-like header */}
@@ -105,130 +207,97 @@ export function BacklogTree({ issues, selectedEpicId, projectKey = 'TYK' }: Back
         <div className="flex items-center gap-3">
           <span>Hierarchy & Issue</span>
         </div>
-        <div className="flex items-center gap-8 pr-12">
-          <span>Status</span>
-          <span>Priority</span>
-          <span>Assignee</span>
+        <div className="flex items-center gap-4 sm:gap-5 pr-10">
+          <span className="w-16 text-center">Status</span>
+          <span className="w-20 text-center">Sprint</span>
+          <span className="w-10 text-center">Priority</span>
+          <span className="w-8 text-center">Pts</span>
+          <span className="w-6 text-center">User</span>
         </div>
       </div>
 
-      <div className="divide-y divide-border/20">
-        {/* Render Epics and their hierarchical children */}
-        {displayedEpics.map((epic) => {
-          const epicChildren = childrenByParentId[epic.id] || [];
-          const hasEpicChildren = epicChildren.length > 0;
-          const epicExpanded = isExpanded(epic.id);
+      <Droppable droppableId="backlog-tree">
+        {(provided) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className="divide-y divide-border/20"
+          >
+            {/* Render Epics and their hierarchical children */}
+            {displayedEpics.map((epic) => {
+              const epicChildren = childrenByParentId[epic.id] || [];
+              const hasEpicChildren = epicChildren.length > 0;
+              const epicExpanded = isExpanded(epic.id);
 
-          return (
-            <div key={epic.id} className="border-b border-border/40">
-              {/* Level 0: Epic */}
-              <IssueRow
-                issue={epic}
-                level={0}
-                hasChildren={hasEpicChildren}
-                isExpanded={epicExpanded}
-                onToggleExpand={() => toggleExpand(epic.id)}
-                onTitleChange={handleTitleChange}
-                onStatusChange={handleStatusChange}
-                onPriorityChange={handlePriorityChange}
-                onDelete={handleDelete}
-                onAddChild={handleAddChild}
-                onClick={openEditModal}
-              />
+              return (
+                <React.Fragment key={epic.id}>
+                  {/* Level 0: Epic */}
+                  {renderDraggableRow(epic, 0, {
+                    hasChildren: hasEpicChildren,
+                    isExpanded: epicExpanded,
+                    onToggleExpand: () => toggleExpand(epic.id),
+                    onAddChild: handleAddChild,
+                  })}
 
-              {/* Children of Epic (Stories / Tasks) */}
-              {epicExpanded &&
-                epicChildren.map((child) => {
-                  const subtasks = childrenByParentId[child.id] || [];
-                  const hasSubtasks = subtasks.length > 0;
-                  const childExpanded = isExpanded(child.id);
+                  {/* Children of Epic (Stories / Tasks) */}
+                  {epicExpanded &&
+                    epicChildren.map((child) => {
+                      const subtasks = childrenByParentId[child.id] || [];
+                      const hasSubtasks = subtasks.length > 0;
+                      const childExpanded = isExpanded(child.id);
 
-                  return (
-                    <React.Fragment key={child.id}>
-                      {/* Level 1: Story / Task */}
-                      <IssueRow
-                        issue={child}
-                        level={1}
-                        hasChildren={hasSubtasks}
-                        isExpanded={childExpanded}
-                        onToggleExpand={() => toggleExpand(child.id)}
-                        onTitleChange={handleTitleChange}
-                        onStatusChange={handleStatusChange}
-                        onPriorityChange={handlePriorityChange}
-                        onDelete={handleDelete}
-                        onAddChild={handleAddChild}
-                        onClick={openEditModal}
-                      />
+                      return (
+                        <React.Fragment key={child.id}>
+                          {/* Level 1: Story / Task */}
+                          {renderDraggableRow(child, 1, {
+                            hasChildren: hasSubtasks,
+                            isExpanded: childExpanded,
+                            onToggleExpand: () => toggleExpand(child.id),
+                            onAddChild: handleAddChild,
+                          })}
 
-                      {/* Level 2: Subtasks */}
-                      {childExpanded &&
-                        subtasks.map((subtask) => (
-                          <IssueRow
-                            key={subtask.id}
-                            issue={subtask}
-                            level={2}
-                            hasChildren={false}
-                            onTitleChange={handleTitleChange}
-                            onStatusChange={handleStatusChange}
-                            onPriorityChange={handlePriorityChange}
-                            onDelete={handleDelete}
-                            onClick={openEditModal}
-                          />
-                        ))}
-                    </React.Fragment>
-                  );
-                })}
-            </div>
-          );
-        })}
+                          {/* Level 2: Subtasks */}
+                          {childExpanded &&
+                            subtasks.map((subtask) => renderDraggableRow(subtask, 2))}
+                        </React.Fragment>
+                      );
+                    })}
+                </React.Fragment>
+              );
+            })}
 
-        {/* Unparented Standalone Issues (Stories, Tasks, Bugs) */}
-        {displayedUnparented.map((issue) => {
-          const subtasks = childrenByParentId[issue.id] || [];
-          const hasSubtasks = subtasks.length > 0;
-          const issueExpanded = isExpanded(issue.id);
+            {/* Unparented Standalone Issues (Stories, Tasks, Bugs) */}
+            {displayedUnparented.map((issue) => {
+              const subtasks = childrenByParentId[issue.id] || [];
+              const hasSubtasks = subtasks.length > 0;
+              const issueExpanded = isExpanded(issue.id);
 
-          return (
-            <div key={issue.id} className="border-b border-border/40">
-              <IssueRow
-                issue={issue}
-                level={0}
-                hasChildren={hasSubtasks}
-                isExpanded={issueExpanded}
-                onToggleExpand={() => toggleExpand(issue.id)}
-                onTitleChange={handleTitleChange}
-                onStatusChange={handleStatusChange}
-                onPriorityChange={handlePriorityChange}
-                onDelete={handleDelete}
-                onAddChild={handleAddChild}
-                onClick={openEditModal}
-              />
+              return (
+                <React.Fragment key={issue.id}>
+                  {renderDraggableRow(issue, 0, {
+                    hasChildren: hasSubtasks,
+                    isExpanded: issueExpanded,
+                    onToggleExpand: () => toggleExpand(issue.id),
+                    onAddChild: handleAddChild,
+                  })}
 
-              {/* Subtasks under standalone task */}
-              {issueExpanded &&
-                subtasks.map((subtask) => (
-                  <IssueRow
-                    key={subtask.id}
-                    issue={subtask}
-                    level={1}
-                    hasChildren={false}
-                    onTitleChange={handleTitleChange}
-                    onStatusChange={handleStatusChange}
-                    onPriorityChange={handlePriorityChange}
-                    onDelete={handleDelete}
-                    onClick={openEditModal}
-                  />
-                ))}
-            </div>
-          );
-        })}
+                  {/* Subtasks under standalone task */}
+                  {issueExpanded &&
+                    subtasks.map((subtask) => renderDraggableRow(subtask, 1))}
+                </React.Fragment>
+              );
+            })}
 
-        {displayedEpics.length === 0 && displayedUnparented.length === 0 && (
-          <div className="py-16 text-center text-muted-foreground text-sm">
-            No issues found matching the selected filter.
+            {displayedEpics.length === 0 && displayedUnparented.length === 0 && (
+              <div className="py-16 text-center text-muted-foreground text-sm">
+                No issues found matching the selected filter.
+              </div>
+            )}
+
+            {provided.placeholder}
           </div>
         )}
-      </div>
+      </Droppable>
     </div>
   );
 }

@@ -16,6 +16,9 @@ interface IssueCardProps {
 }
 
 export function IssueCard({ issue, index, onClick }: IssueCardProps) {
+  const storyPoints = issue.storyPoints ?? issue.story_points;
+  const hasStoryPoints = typeof storyPoints === 'number';
+
   return (
     <Draggable draggableId={issue.id} index={index}>
       {(provided, snapshot) => (
@@ -50,12 +53,12 @@ export function IssueCard({ issue, index, onClick }: IssueCardProps) {
             {issue.title}
           </h4>
 
-          {/* Bottom row: Parent badge (if any) and Assignee */}
-          <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
+          {/* Bottom row: Parent badge, Story Points, and Assignee */}
+          <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground gap-2">
             {issue.parentId ? (
               <Badge
                 variant="outline"
-                className="text-[11px] px-1.5 py-0 h-4 font-mono font-medium bg-muted/40 border-border text-muted-foreground truncate max-w-[120px]"
+                className="text-[11px] px-1.5 py-0 h-4 font-mono font-medium bg-muted/40 border-border text-muted-foreground truncate max-w-[110px]"
               >
                 {issue.parentId.startsWith('epic') ? 'Epic' : 'Subtask'}
               </Badge>
@@ -63,7 +66,21 @@ export function IssueCard({ issue, index, onClick }: IssueCardProps) {
               <div />
             )}
 
-            <div className="ml-auto flex items-center">
+            <div className="ml-auto flex items-center gap-2 shrink-0">
+              {/* Story Points Indicator */}
+              <span
+                className={cn(
+                  'h-5 min-w-[20px] px-1.5 rounded-full text-[10px] font-mono font-semibold flex items-center justify-center border transition-colors',
+                  hasStoryPoints
+                    ? 'bg-muted/80 text-foreground border-border/80 shadow-2xs'
+                    : 'text-muted-foreground/40 border-dashed border-border/60 bg-muted/20'
+                )}
+                title={hasStoryPoints ? `Story Points: ${storyPoints}` : 'Story Points: Unestimated'}
+              >
+                {hasStoryPoints ? storyPoints : '—'}
+              </span>
+
+              {/* Assignee Avatar */}
               {issue.assignee ? (
                 <Avatar size="sm" className="h-5 w-5 ring-1 ring-border">
                   {issue.assignee.avatarUrl ? (

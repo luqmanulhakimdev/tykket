@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useIssues, useProjectMembers } from '@/hooks/use-issues';
 import { Issue } from '@/types/issue';
 import { useIssueModal } from '@/context/issue-modal-context';
@@ -25,19 +25,26 @@ import {
   Settings,
   Trash2,
   Plus,
+  FolderPlus,
   Moon,
   Sun,
   User,
+  BarChart3,
 } from 'lucide-react';
+import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
 
 export function GlobalCommandPalette({ projectKey = 'TYK' }: { projectKey?: string }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isOpen, closePalette } = useCommandPalette();
   const { openCreateModal, openEditModal } = useIssueModal();
   const { theme, setTheme } = useTheme();
 
+  const activeProjectKey = pathname?.match(/\/projects\/([^/]+)/)?.[1] || projectKey;
+
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
 
   // Debounce search input for instant snappy filtering
   useEffect(() => {
@@ -48,8 +55,8 @@ export function GlobalCommandPalette({ projectKey = 'TYK' }: { projectKey?: stri
   }, [search]);
 
   // Load issues and members from live API
-  const { data: issues = [] } = useIssues(projectKey);
-  const { data: projectMembers = [] } = useProjectMembers(projectKey);
+  const { data: issues = [] } = useIssues(activeProjectKey);
+  const { data: projectMembers = [] } = useProjectMembers(activeProjectKey);
 
   // Filter issues by Key or Title
   const matchingIssues = useMemo(() => {
@@ -82,7 +89,7 @@ export function GlobalCommandPalette({ projectKey = 'TYK' }: { projectKey?: stri
 
   const handleFilterByAssignee = (userId: string) => {
     closePalette();
-    router.push(`/projects/${projectKey}/board?assignee=${userId}`);
+    router.push(`/projects/${activeProjectKey}/board?assignee=${userId}`);
   };
 
   const handleToggleTheme = () => {
@@ -91,7 +98,8 @@ export function GlobalCommandPalette({ projectKey = 'TYK' }: { projectKey?: stri
   };
 
   return (
-    <CommandDialog open={isOpen} onOpenChange={(open) => !open && closePalette()}>
+    <>
+      <CommandDialog open={isOpen} onOpenChange={(open) => !open && closePalette()}>
       <CommandInput
         placeholder="Type a command or search issues..."
         value={search}
@@ -143,6 +151,20 @@ export function GlobalCommandPalette({ projectKey = 'TYK' }: { projectKey?: stri
             <kbd className="text-[10px] font-mono bg-muted border border-border/80 px-1.5 py-0.5 rounded text-muted-foreground">
               C
             </kbd>
+          </CommandItem>
+
+          <CommandItem
+            value="create new project workspace"
+            onSelect={() => {
+              closePalette();
+              setIsCreateProjectOpen(true);
+            }}
+            className="flex items-center justify-between cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <FolderPlus size={14} className="text-primary" />
+              <span>Create new project</span>
+            </div>
           </CommandItem>
 
           <CommandItem
@@ -202,7 +224,7 @@ export function GlobalCommandPalette({ projectKey = 'TYK' }: { projectKey?: stri
         <CommandGroup heading="Navigation">
           <CommandItem
             value="go to board kanban"
-            onSelect={() => handleNavigate(`/projects/${projectKey}/board`)}
+            onSelect={() => handleNavigate(`/projects/${activeProjectKey}/board`)}
             className="flex items-center justify-between cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
@@ -216,7 +238,7 @@ export function GlobalCommandPalette({ projectKey = 'TYK' }: { projectKey?: stri
 
           <CommandItem
             value="go to backlog"
-            onSelect={() => handleNavigate(`/projects/${projectKey}/backlog`)}
+            onSelect={() => handleNavigate(`/projects/${activeProjectKey}/backlog`)}
             className="flex items-center justify-between cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
@@ -229,8 +251,22 @@ export function GlobalCommandPalette({ projectKey = 'TYK' }: { projectKey?: stri
           </CommandItem>
 
           <CommandItem
+            value="go to reports metrics burndown export"
+            onSelect={() => handleNavigate(`/projects/${activeProjectKey}/reports`)}
+            className="flex items-center justify-between cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <BarChart3 size={14} className="text-muted-foreground" />
+              <span>Go to Reports & Metrics</span>
+            </div>
+            <kbd className="text-[10px] font-mono bg-muted border border-border/80 px-1.5 py-0.5 rounded text-muted-foreground">
+              G R
+            </kbd>
+          </CommandItem>
+
+          <CommandItem
             value="go to trash bin soft delete"
-            onSelect={() => handleNavigate(`/projects/${projectKey}/trash`)}
+            onSelect={() => handleNavigate(`/projects/${activeProjectKey}/trash`)}
             className="flex items-center justify-between cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
@@ -244,7 +280,7 @@ export function GlobalCommandPalette({ projectKey = 'TYK' }: { projectKey?: stri
 
           <CommandItem
             value="go to project settings"
-            onSelect={() => handleNavigate(`/projects/${projectKey}/settings`)}
+            onSelect={() => handleNavigate(`/projects/${activeProjectKey}/settings`)}
             className="flex items-center justify-between cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
@@ -258,5 +294,7 @@ export function GlobalCommandPalette({ projectKey = 'TYK' }: { projectKey?: stri
         </CommandGroup>
       </CommandList>
     </CommandDialog>
+    <CreateProjectDialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen} />
+    </>
   );
 }

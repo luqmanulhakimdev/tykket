@@ -269,14 +269,19 @@ export interface Comment {
   user_id: string;
   userId?: string;
   content: string;
+  parent_id?: string | null;
+  parentId?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
   user?: User;
+  replies?: Comment[];
 }
 
 export interface CreateCommentInput {
   content: string;
+  parent_id?: string | null;
+  parentId?: string | null;
 }
 
 export interface UpdateCommentInput {
@@ -286,6 +291,12 @@ export interface UpdateCommentInput {
 export function normalizeComment(raw: unknown): Comment {
   const c = raw as Record<string, unknown>;
   const user = c.user as User | undefined;
+  const rawReplies = Array.isArray(c.replies) ? c.replies : [];
+  const parentId =
+    (c.parent_id as string | null | undefined) ??
+    (c.parentId as string | null | undefined) ??
+    null;
+
   return {
     id: String(c.id || ''),
     issue_id: String(c.issue_id || c.issueId || ''),
@@ -293,6 +304,8 @@ export function normalizeComment(raw: unknown): Comment {
     user_id: String(c.user_id || c.userId || ''),
     userId: String(c.user_id || c.userId || ''),
     content: String(c.content || ''),
+    parent_id: parentId,
+    parentId: parentId,
     created_at: String(c.created_at || c.createdAt || new Date().toISOString()),
     updated_at: String(c.updated_at || c.updatedAt || new Date().toISOString()),
     deleted_at: (c.deleted_at as string) || (c.deletedAt as string) || undefined,
@@ -305,5 +318,6 @@ export function normalizeComment(raw: unknown): Comment {
           avatar_url: user.avatar_url || user.avatarUrl,
         }
       : undefined,
+    replies: rawReplies.map(normalizeComment),
   };
 }

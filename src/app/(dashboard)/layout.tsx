@@ -17,9 +17,9 @@ export default function DashboardLayout({
     <Suspense fallback={<div className="h-screen w-full bg-background" />}>
       <AuthGuard>
         <div className="flex h-screen w-full overflow-hidden bg-background text-foreground antialiased selection:bg-primary/20">
-          <Sidebar projectKey="TYK" />
+          <Sidebar />
           <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
-            <Header projectKey="TYK" projectName="Tykket" />
+            <Header />
             <main className="flex-1 overflow-hidden relative flex flex-col">
               <Suspense fallback={<div className="flex-1 bg-background" />}>
                 {children}
@@ -29,7 +29,7 @@ export default function DashboardLayout({
         </div>
         <GlobalShortcuts />
         <ShortcutsDialog />
-        <GlobalCommandPalette projectKey="TYK" />
+        <GlobalCommandPalette />
         <IssueModal />
         <Toaster position="bottom-right" richColors closeButton />
       </AuthGuard>
