@@ -208,7 +208,7 @@ export default function TrashPage() {
                         {search ? 'No matching issues found in trash' : 'Trash bin is completely empty'}
                       </p>
                       <p className="text-[11px] text-muted-foreground/70">
-                        Issues soft-deleted from Kanban or Backlog will be held here safely.
+                        Issues soft-deleted from Board or Backlog will be held here safely.
                       </p>
                     </div>
                   </td>

@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
+import { cn } from '@/lib/utils';
 
 function formatDate(dateStr?: string) {
   if (!dateStr) return null;
@@ -44,6 +45,8 @@ interface ProjectCardProps {
 function ProjectCard({ project }: ProjectCardProps) {
   const { data: members = [], isLoading: membersLoading } = useProjectMembers(project.id);
   const { data: sprints = [], isLoading: sprintsLoading } = useSprints(project.id);
+
+  const isKanban = project.type === 'KANBAN';
 
   const activeSprint = useMemo(() => {
     return sprints.find((s) => s.status === 'ACTIVE') || null;
@@ -71,6 +74,17 @@ function ProjectCard({ project }: ProjectCardProps) {
             >
               {projectKey}
             </Badge>
+            <Badge
+              variant="secondary"
+              className={cn(
+                'text-[10px] font-semibold px-2 py-0.5 uppercase tracking-wide',
+                isKanban
+                  ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                  : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+              )}
+            >
+              {isKanban ? 'Kanban' : 'Scrum'}
+            </Badge>
           </div>
           <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
             {project.description || 'No description provided for this project.'}
@@ -91,27 +105,46 @@ function ProjectCard({ project }: ProjectCardProps) {
         </Link>
       </div>
 
-      {/* Running Sprint Status Section */}
+      {/* Workflow / Sprint Status Section */}
       <div className="rounded-lg bg-muted/40 border border-border/50 p-3 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-            <Zap size={14} className="text-amber-500 fill-amber-500" />
-            <span>Active Sprint</span>
+            {isKanban ? (
+              <LayoutDashboard size={14} className="text-purple-500" />
+            ) : (
+              <Zap size={14} className="text-amber-500 fill-amber-500" />
+            )}
+            <span>{isKanban ? 'Workflow Mode' : 'Active Sprint'}</span>
           </div>
 
-          {activeSprint ? (
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Running
-            </span>
-          ) : (
-            <span className="text-[11px] text-muted-foreground font-medium px-2 py-0.5 rounded bg-muted/60">
-              No active sprint
-            </span>
-          )}
+          <span
+            className={cn(
+              'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold',
+              isKanban
+                ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/25'
+                : activeSprint
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25'
+                : 'text-muted-foreground bg-muted/60'
+            )}
+          >
+            {isKanban ? (
+              'Continuous Flow'
+            ) : activeSprint ? (
+              <>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Running
+              </>
+            ) : (
+              'No active sprint'
+            )}
+          </span>
         </div>
 
-        {sprintsLoading ? (
+        {isKanban ? (
+          <p className="text-[11px] text-muted-foreground">
+            Continuous task flow on Board. No sprint cycles required.
+          </p>
+        ) : sprintsLoading ? (
           <div className="h-6 w-3/4 bg-muted/60 rounded animate-pulse" />
         ) : activeSprint ? (
           <div className="space-y-1">

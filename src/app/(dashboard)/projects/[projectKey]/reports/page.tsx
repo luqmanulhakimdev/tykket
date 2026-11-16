@@ -51,6 +51,8 @@ const statusColorMap: Record<string, string> = {
   TODO: 'bg-slate-400',
   IN_PROGRESS: 'bg-blue-500',
   IN_REVIEW: 'bg-amber-500',
+  IN_QA: 'bg-purple-500',
+  READY_FOR_RELEASE: 'bg-teal-500',
   DONE: 'bg-emerald-500',
   BACKLOG: 'bg-purple-400',
 };
@@ -621,6 +623,8 @@ export default function ReportsPage() {
                 <option value="TODO">To Do</option>
                 <option value="IN_PROGRESS">In Progress</option>
                 <option value="IN_REVIEW">In Review</option>
+                <option value="IN_QA">In QA</option>
+                <option value="READY_FOR_RELEASE">Ready for Release</option>
                 <option value="DONE">Done</option>
               </select>
             </div>

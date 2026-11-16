@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
-import { useIssues, useSprints, useBulkMoveSprintMutation } from '@/hooks/use-issues';
+import { useIssues, useSprints, useBulkMoveSprintMutation, useProject } from '@/hooks/use-issues';
 import { IssuePriority, IssueType } from '@/types/issue';
 import { EpicPanel } from '@/components/backlog/epic-panel';
 import { BacklogTree } from '@/components/backlog/backlog-tree';
@@ -24,10 +24,13 @@ export default function BacklogPage() {
   const [selectedEpicId, setSelectedEpicId] = useState<string | null>(null);
   const [isSprintPointsOpen, setIsSprintPointsOpen] = useState(false);
 
-  // Fetch issues & sprints from live Go backend
+  // Fetch project, issues & sprints from live Go backend
+  const { data: project } = useProject(projectKey);
   const { data: issues = [] } = useIssues(projectKey);
   const { data: sprints = [] } = useSprints(projectKey);
   const bulkMoveMutation = useBulkMoveSprintMutation(projectKey);
+
+  const isScrum = project?.type === 'SCRUM' || !project?.type;
 
   // Parse filters from URL search params (consistent with Kanban board)
   const search = searchParams?.get('search') || '';
@@ -176,16 +179,19 @@ export default function BacklogPage() {
           totalCount={issues.length}
           filteredCount={filteredIssues.length}
           totalSprintPoints={totalActiveSprintPoints}
+          isScrum={isScrum}
           onOpenSprintPoints={() => setIsSprintPointsOpen(true)}
           onOpenCreateIssue={() => openCreateModal({ status: 'BACKLOG' })}
         />
 
-        {/* Sprints Overview & Management (Active Sprint, Planned Sprints, Start/Create Sprint) */}
-        <SprintManagerCard
-          projectKey={projectKey}
-          sprints={sprints}
-          issues={issues}
-        />
+        {/* Sprints Overview & Management (Scrum projects only) */}
+        {isScrum && (
+          <SprintManagerCard
+            projectKey={projectKey}
+            sprints={sprints}
+            issues={issues}
+          />
+        )}
 
         {/* Main Backlog Layout: Left Epic Panel + Right Backlog Tree */}
         <div className="flex-1 flex overflow-hidden">

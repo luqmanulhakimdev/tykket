@@ -28,6 +28,8 @@ const issueStatusOptions: { value: IssueStatus; label: string; dotColor: string 
   { value: 'TODO', label: 'To Do', dotColor: 'bg-slate-400' },
   { value: 'IN_PROGRESS', label: 'In Progress', dotColor: 'bg-blue-500' },
   { value: 'IN_REVIEW', label: 'In Review', dotColor: 'bg-amber-500' },
+  { value: 'IN_QA', label: 'In QA', dotColor: 'bg-purple-500' },
+  { value: 'READY_FOR_RELEASE', label: 'Ready for Release', dotColor: 'bg-teal-500' },
   { value: 'DONE', label: 'Done', dotColor: 'bg-emerald-500' },
 ];
 
@@ -36,6 +38,8 @@ const statusLabelMap: Record<IssueStatus, string> = {
   TODO: 'To Do',
   IN_PROGRESS: 'In Progress',
   IN_REVIEW: 'In Review',
+  IN_QA: 'In QA',
+  READY_FOR_RELEASE: 'Ready for Release',
   DONE: 'Done',
 };
 
@@ -61,6 +65,8 @@ const statusBadgeStyles: Record<IssueStatus, string> = {
   TODO: 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700',
   IN_PROGRESS: 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200 dark:border-blue-800',
   IN_REVIEW: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+  IN_QA: 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+  READY_FOR_RELEASE: 'bg-teal-50 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300 border-teal-200 dark:border-teal-800',
   DONE: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
 };
 

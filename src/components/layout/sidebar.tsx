@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -65,7 +66,7 @@ export function Sidebar({ projectKey = 'TYK' }: SidebarProps) {
 
   const navItems = [
     {
-      title: 'Kanban Board',
+      title: 'Board',
       href: `/projects/${activeProjectKey}/board`,
       icon: LayoutDashboard,
       active: pathname?.includes('/board'),
@@ -105,6 +106,24 @@ export function Sidebar({ projectKey = 'TYK' }: SidebarProps) {
         collapsed ? 'w-16' : 'w-60'
       )}
     >
+      {/* Brand Header */}
+      <div className={cn('px-4 py-3 border-b border-border/50 flex items-center', collapsed && 'justify-center px-2')}>
+        <Link href="/projects" className="flex items-center gap-2.5 group">
+          <Image
+            src="/logo.png"
+            alt="Tykket"
+            width={24}
+            height={24}
+            className="rounded-md shrink-0 shadow-xs group-hover:scale-105 transition-transform"
+          />
+          {!collapsed && (
+            <span className="font-bold text-sm tracking-tight text-foreground">
+              Tykket
+            </span>
+          )}
+        </Link>
+      </div>
+
       {/* Top Workspace Selector */}
       <div className="p-3 border-b border-border/60">
         <DropdownMenu>

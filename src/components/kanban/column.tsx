@@ -20,6 +20,8 @@ const statusIndicatorColors: Record<IssueStatus, string> = {
   TODO: 'bg-zinc-400',
   IN_PROGRESS: 'bg-blue-500',
   IN_REVIEW: 'bg-amber-500',
+  IN_QA: 'bg-purple-500',
+  READY_FOR_RELEASE: 'bg-teal-500',
   DONE: 'bg-emerald-500',
 };
 

@@ -40,8 +40,10 @@ interface UserWorkload {
   totalPoints: number;
   issueCount: number;
   donePoints: number;
-  inProgressPoints: number;
+  readyForReleasePoints: number;
+  inQAPoints: number;
   inReviewPoints: number;
+  inProgressPoints: number;
   todoPoints: number;
 }
 
@@ -98,8 +100,10 @@ export function SprintPointsDialog({
           totalPoints: 0,
           issueCount: 0,
           donePoints: 0,
-          inProgressPoints: 0,
+          readyForReleasePoints: 0,
+          inQAPoints: 0,
           inReviewPoints: 0,
+          inProgressPoints: 0,
           todoPoints: 0,
         };
       }
@@ -111,8 +115,10 @@ export function SprintPointsDialog({
       totalPoints: 0,
       issueCount: 0,
       donePoints: 0,
-      inProgressPoints: 0,
+      readyForReleasePoints: 0,
+      inQAPoints: 0,
       inReviewPoints: 0,
+      inProgressPoints: 0,
       todoPoints: 0,
     };
 
@@ -138,8 +144,10 @@ export function SprintPointsDialog({
             totalPoints: 0,
             issueCount: 0,
             donePoints: 0,
-            inProgressPoints: 0,
+            readyForReleasePoints: 0,
+            inQAPoints: 0,
             inReviewPoints: 0,
+            inProgressPoints: 0,
             todoPoints: 0,
           };
         }
@@ -151,10 +159,14 @@ export function SprintPointsDialog({
 
       if (issue.status === 'DONE') {
         target.donePoints += points;
-      } else if (issue.status === 'IN_PROGRESS') {
-        target.inProgressPoints += points;
+      } else if (issue.status === 'READY_FOR_RELEASE') {
+        target.readyForReleasePoints += points;
+      } else if (issue.status === 'IN_QA') {
+        target.inQAPoints += points;
       } else if (issue.status === 'IN_REVIEW') {
         target.inReviewPoints += points;
+      } else if (issue.status === 'IN_PROGRESS') {
+        target.inProgressPoints += points;
       } else {
         target.todoPoints += points;
       }
@@ -386,11 +398,18 @@ export function SprintPointsDialog({
                               title={`Done: ${workload.donePoints} pts`}
                             />
                           )}
-                          {workload.inProgressPoints > 0 && (
+                          {workload.readyForReleasePoints > 0 && (
                             <div
-                              style={{ width: `${(workload.inProgressPoints / workload.totalPoints) * 100}%` }}
-                              className="bg-blue-500 h-full transition-all"
-                              title={`In Progress: ${workload.inProgressPoints} pts`}
+                              style={{ width: `${(workload.readyForReleasePoints / workload.totalPoints) * 100}%` }}
+                              className="bg-teal-500 h-full transition-all"
+                              title={`Ready for Release: ${workload.readyForReleasePoints} pts`}
+                            />
+                          )}
+                          {workload.inQAPoints > 0 && (
+                            <div
+                              style={{ width: `${(workload.inQAPoints / workload.totalPoints) * 100}%` }}
+                              className="bg-purple-500 h-full transition-all"
+                              title={`In QA: ${workload.inQAPoints} pts`}
                             />
                           )}
                           {workload.inReviewPoints > 0 && (
@@ -398,6 +417,13 @@ export function SprintPointsDialog({
                               style={{ width: `${(workload.inReviewPoints / workload.totalPoints) * 100}%` }}
                               className="bg-amber-500 h-full transition-all"
                               title={`In Review: ${workload.inReviewPoints} pts`}
+                            />
+                          )}
+                          {workload.inProgressPoints > 0 && (
+                            <div
+                              style={{ width: `${(workload.inProgressPoints / workload.totalPoints) * 100}%` }}
+                              className="bg-blue-500 h-full transition-all"
+                              title={`In Progress: ${workload.inProgressPoints} pts`}
                             />
                           )}
                           {workload.todoPoints > 0 && (
@@ -417,16 +443,28 @@ export function SprintPointsDialog({
                               Done: {workload.donePoints} pts
                             </span>
                           )}
-                          {workload.inProgressPoints > 0 && (
-                            <span className="flex items-center gap-1 font-medium text-blue-600 dark:text-blue-400">
-                              <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                              In Progress: {workload.inProgressPoints} pts
+                          {workload.readyForReleasePoints > 0 && (
+                            <span className="flex items-center gap-1 font-medium text-teal-600 dark:text-teal-400">
+                              <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+                              Release: {workload.readyForReleasePoints} pts
+                            </span>
+                          )}
+                          {workload.inQAPoints > 0 && (
+                            <span className="flex items-center gap-1 font-medium text-purple-600 dark:text-purple-400">
+                              <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+                              QA: {workload.inQAPoints} pts
                             </span>
                           )}
                           {workload.inReviewPoints > 0 && (
                             <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
                               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                               Review: {workload.inReviewPoints} pts
+                            </span>
+                          )}
+                          {workload.inProgressPoints > 0 && (
+                            <span className="flex items-center gap-1 font-medium text-blue-600 dark:text-blue-400">
+                              <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                              In Progress: {workload.inProgressPoints} pts
                             </span>
                           )}
                           {workload.todoPoints > 0 && (

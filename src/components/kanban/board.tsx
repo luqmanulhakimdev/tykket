@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
-import { Column, IssuePriority, IssueStatus, IssueType } from '@/types/issue';
+import { Column, IssuePriority, IssueStatus, IssueType, ProjectType } from '@/types/issue';
 import { calculateNewPosition } from '@/lib/fractional-index';
 import { KanbanColumn } from './column';
 import { useIssueModal } from '@/context/issue-modal-context';
@@ -15,15 +15,24 @@ const KANBAN_STATUSES: { id: IssueStatus; title: string }[] = [
   { id: 'TODO', title: 'To Do' },
   { id: 'IN_PROGRESS', title: 'In Progress' },
   { id: 'IN_REVIEW', title: 'In Review' },
+  { id: 'IN_QA', title: 'In QA' },
+  { id: 'READY_FOR_RELEASE', title: 'Ready for Release' },
   { id: 'DONE', title: 'Done' },
 ];
 
 interface KanbanBoardProps {
   projectKey?: string;
+  projectType?: ProjectType;
+  activeSprintId?: string | null;
   onCountsChange?: (total: number, filtered: number) => void;
 }
 
-export function KanbanBoard({ projectKey = 'TYK', onCountsChange }: KanbanBoardProps) {
+export function KanbanBoard({
+  projectKey = 'TYK',
+  projectType = 'SCRUM',
+  activeSprintId,
+  onCountsChange,
+}: KanbanBoardProps) {
   const searchParams = useSearchParams();
   const { user: currentUser } = useAuth();
   const { openEditModal, openCreateModal } = useIssueModal();
@@ -84,14 +93,30 @@ export function KanbanBoard({ projectKey = 'TYK', onCountsChange }: KanbanBoardP
         }
       }
 
+      // 5. Sprint filter for Scrum mode (only show issues belonging to active sprint)
+      if (projectType === 'SCRUM' && activeSprintId) {
+        const issSprintId = issue.sprintId || issue.sprint_id;
+        if (issSprintId !== activeSprintId) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [issues, searchQuery, types, priority, assignee, currentUser?.id]);
+  }, [issues, searchQuery, types, priority, assignee, currentUser?.id, projectType, activeSprintId]);
+
+  // Relevant issues count based on project type
+  const relevantIssues = useMemo(() => {
+    if (projectType === 'SCRUM' && activeSprintId) {
+      return issues.filter((iss) => (iss.sprintId || iss.sprint_id) === activeSprintId);
+    }
+    return issues;
+  }, [issues, projectType, activeSprintId]);
 
   // Report counts to parent if callback provided
   React.useEffect(() => {
-    onCountsChange?.(issues.length, filteredIssues.length);
-  }, [issues.length, filteredIssues.length, onCountsChange]);
+    onCountsChange?.(relevantIssues.length, filteredIssues.length);
+  }, [relevantIssues.length, filteredIssues.length, onCountsChange]);
 
   // Group issues into the 4 kanban columns, sorted by position ascending
   const columns: Column[] = useMemo(() => {
@@ -156,6 +181,7 @@ export function KanbanBoard({ projectKey = 'TYK', onCountsChange }: KanbanBoardP
       id: draggableId,
       status: destStatus,
       position: newPosition,
+      sprintId: projectType === 'SCRUM' ? activeSprintId || undefined : undefined,
     });
   };
 
@@ -168,7 +194,12 @@ export function KanbanBoard({ projectKey = 'TYK', onCountsChange }: KanbanBoardP
               key={column.id}
               column={column}
               onCardClick={(issue) => openEditModal(issue)}
-              onAddClick={(status) => openCreateModal({ status })}
+              onAddClick={(status) =>
+                openCreateModal({
+                  status,
+                  sprintId: projectType === 'SCRUM' ? activeSprintId || undefined : undefined,
+                })
+              }
             />
           ))}
         </div>

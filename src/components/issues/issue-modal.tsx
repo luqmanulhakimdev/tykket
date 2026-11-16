@@ -20,6 +20,7 @@ import {
   useDeleteIssueMutation,
   useProjectMembers,
   useSprints,
+  useProject,
   ISSUES_QUERY_KEY,
   SPRINTS_QUERY_KEY,
 } from '@/hooks/use-issues';
@@ -53,6 +54,8 @@ const issueStatusOptions: { value: IssueStatus; label: string; dotColor: string 
   { value: 'TODO', label: 'To Do', dotColor: 'bg-slate-400' },
   { value: 'IN_PROGRESS', label: 'In Progress', dotColor: 'bg-blue-500' },
   { value: 'IN_REVIEW', label: 'In Review', dotColor: 'bg-amber-500' },
+  { value: 'IN_QA', label: 'In QA', dotColor: 'bg-purple-500' },
+  { value: 'READY_FOR_RELEASE', label: 'Ready for Release', dotColor: 'bg-teal-500' },
   { value: 'DONE', label: 'Done', dotColor: 'bg-emerald-500' },
 ];
 
@@ -61,6 +64,8 @@ const statusColorMap: Record<IssueStatus, string> = {
   TODO: 'bg-slate-400',
   IN_PROGRESS: 'bg-blue-500',
   IN_REVIEW: 'bg-amber-500',
+  IN_QA: 'bg-purple-500',
+  READY_FOR_RELEASE: 'bg-teal-500',
   DONE: 'bg-emerald-500',
 };
 
@@ -69,6 +74,8 @@ const statusLabelMap: Record<IssueStatus, string> = {
   TODO: 'To Do',
   IN_PROGRESS: 'In Progress',
   IN_REVIEW: 'In Review',
+  IN_QA: 'In QA',
+  READY_FOR_RELEASE: 'Ready for Release',
   DONE: 'Done',
 };
 
@@ -77,6 +84,7 @@ interface IssueModalFormProps {
   defaultStatus?: IssueStatus;
   defaultType?: IssueType;
   defaultParentId?: string;
+  defaultSprintId?: string;
   closeModal: () => void;
   isFullScreen: boolean;
   onToggleFullScreen: () => void;
@@ -87,6 +95,7 @@ function IssueModalForm({
   defaultStatus,
   defaultType,
   defaultParentId,
+  defaultSprintId,
   closeModal,
   isFullScreen,
   onToggleFullScreen,
@@ -97,10 +106,13 @@ function IssueModalForm({
   const projectKey =
     issueToEdit?.key?.split('-')[0] || urlProjectKey || 'TYK';
 
-  // Load issues, members and sprints from live Go backend
+  // Load project, issues, members and sprints from live Go backend
+  const { data: project } = useProject(projectKey);
   const { data: issues = [] } = useIssues(projectKey);
   const { data: projectMembers = [] } = useProjectMembers(projectKey);
   const { data: sprints = [] } = useSprints(projectKey);
+
+  const isScrum = project?.type === 'SCRUM' || !project?.type;
 
   const availableUsers: User[] = useMemo(() => {
     if (projectMembers.length > 0) {
@@ -134,7 +146,7 @@ function IssueModalForm({
       : defaultParentId || ''
   );
   const [sprintId, setSprintId] = useState<string>(
-    issueToEdit?.sprintId || issueToEdit?.sprint_id || ''
+    issueToEdit ? issueToEdit.sprintId || issueToEdit.sprint_id || '' : defaultSprintId || ''
   );
   const [storyPoints, setStoryPoints] = useState<number | ''>(
     issueToEdit?.storyPoints ?? issueToEdit?.story_points ?? ''
@@ -791,78 +803,80 @@ function IssueModalForm({
             )}
           </div>
 
-          {/* Sprint Selector */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                <Timer size={13} className="text-muted-foreground" />
-                <span>Sprint</span>
-              </label>
-              {selectedSprint?.status === 'ACTIVE' && (
-                <Badge
-                  variant="outline"
-                  className="text-[9px] px-1.5 py-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-semibold"
-                >
-                  ACTIVE
-                </Badge>
-              )}
-            </div>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                type="button"
-                className="w-full flex items-center justify-between bg-background border border-border/80 hover:border-primary/50 px-3 py-2 rounded-lg text-xs font-medium shadow-2xs transition-all hover:bg-muted/40 outline-none cursor-pointer group"
-              >
-                <div className="flex items-center gap-2 truncate min-w-0">
-                  <span
-                    className={cn(
-                      'truncate font-semibold',
-                      selectedSprint ? 'text-foreground' : 'text-muted-foreground font-normal'
-                    )}
+          {/* Sprint Selector (Scrum projects only) */}
+          {isScrum && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Timer size={13} className="text-muted-foreground" />
+                  <span>Sprint</span>
+                </label>
+                {selectedSprint?.status === 'ACTIVE' && (
+                  <Badge
+                    variant="outline"
+                    className="text-[9px] px-1.5 py-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-semibold"
                   >
-                    {selectedSprint ? selectedSprint.name : 'Backlog (No Sprint)'}
-                  </span>
-                </div>
-                <ChevronDown
-                  size={13}
-                  className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0"
-                />
-              </DropdownMenuTrigger>
+                    ACTIVE
+                  </Badge>
+                )}
+              </div>
 
-              <DropdownMenuContent align="start" className="w-56 p-1 bg-popover/95 backdrop-blur-md shadow-xl border-border">
-                <DropdownMenuItem
-                  onClick={() => setSprintId('')}
-                  className="flex items-center justify-between text-xs py-2 px-2.5 rounded-md cursor-pointer hover:bg-muted transition-colors"
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  type="button"
+                  className="w-full flex items-center justify-between bg-background border border-border/80 hover:border-primary/50 px-3 py-2 rounded-lg text-xs font-medium shadow-2xs transition-all hover:bg-muted/40 outline-none cursor-pointer group"
                 >
-                  <span className={cn('text-muted-foreground', !sprintId && 'font-semibold text-foreground')}>
-                    Backlog (No Sprint)
-                  </span>
-                  {!sprintId && <Check size={14} className="text-primary shrink-0" />}
-                </DropdownMenuItem>
+                  <div className="flex items-center gap-2 truncate min-w-0">
+                    <span
+                      className={cn(
+                        'truncate font-semibold',
+                        selectedSprint ? 'text-foreground' : 'text-muted-foreground font-normal'
+                      )}
+                    >
+                      {selectedSprint ? selectedSprint.name : 'Backlog (No Sprint)'}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    size={13}
+                    className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0"
+                  />
+                </DropdownMenuTrigger>
 
-                {sprints.map((s) => (
+                <DropdownMenuContent align="start" className="w-56 p-1 bg-popover/95 backdrop-blur-md shadow-xl border-border">
                   <DropdownMenuItem
-                    key={s.id}
-                    onClick={() => setSprintId(s.id)}
+                    onClick={() => setSprintId('')}
                     className="flex items-center justify-between text-xs py-2 px-2.5 rounded-md cursor-pointer hover:bg-muted transition-colors"
                   >
-                    <div className="flex items-center gap-2 truncate min-w-0">
-                      <span className={cn('truncate', sprintId === s.id && 'font-semibold text-foreground')}>
-                        {s.name}
-                      </span>
-                      <Badge
-                        variant={s.status === 'ACTIVE' ? 'default' : 'secondary'}
-                        className="text-[9px] px-1 py-0 uppercase font-mono shrink-0"
-                      >
-                        {s.status}
-                      </Badge>
-                    </div>
-                    {sprintId === s.id && <Check size={14} className="text-primary shrink-0 ml-1.5" />}
+                    <span className={cn('text-muted-foreground', !sprintId && 'font-semibold text-foreground')}>
+                      Backlog (No Sprint)
+                    </span>
+                    {!sprintId && <Check size={14} className="text-primary shrink-0" />}
                   </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+
+                  {sprints.map((s) => (
+                    <DropdownMenuItem
+                      key={s.id}
+                      onClick={() => setSprintId(s.id)}
+                      className="flex items-center justify-between text-xs py-2 px-2.5 rounded-md cursor-pointer hover:bg-muted transition-colors"
+                    >
+                      <div className="flex items-center gap-2 truncate min-w-0">
+                        <span className={cn('truncate', sprintId === s.id && 'font-semibold text-foreground')}>
+                          {s.name}
+                        </span>
+                        <Badge
+                          variant={s.status === 'ACTIVE' ? 'default' : 'secondary'}
+                          className="text-[9px] px-1 py-0 uppercase font-mono shrink-0"
+                        >
+                          {s.status}
+                        </Badge>
+                      </div>
+                      {sprintId === s.id && <Check size={14} className="text-primary shrink-0 ml-1.5" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
 
           {/* Story Points */}
           <div className="space-y-1.5">
@@ -974,8 +988,15 @@ const getStoredFullScreen = (): boolean => {
 };
 
 export function IssueModal() {
-  const { isOpen, closeModal, issueToEdit, defaultStatus, defaultType, defaultParentId } =
-    useIssueModal();
+  const {
+    isOpen,
+    closeModal,
+    issueToEdit,
+    defaultStatus,
+    defaultType,
+    defaultParentId,
+    defaultSprintId,
+  } = useIssueModal();
 
   const isFullScreen = useSyncExternalStore(subscribeToFullScreen, getStoredFullScreen, () => false);
 
@@ -1015,6 +1036,7 @@ export function IssueModal() {
           defaultStatus={defaultStatus}
           defaultType={defaultType}
           defaultParentId={defaultParentId}
+          defaultSprintId={defaultSprintId}
           closeModal={closeModal}
           isFullScreen={isFullScreen}
           onToggleFullScreen={toggleFullScreen}

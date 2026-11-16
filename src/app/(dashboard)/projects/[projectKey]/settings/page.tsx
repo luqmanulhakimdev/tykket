@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { projectsApi } from '@/lib/api';
-import { Project, ProjectMember } from '@/types/issue';
+import { Project, ProjectMember, ProjectType } from '@/types/issue';
 import {
   Users,
   Shield,
@@ -41,9 +41,16 @@ function GeneralSettingsForm({ project, projectKey, loading }: GeneralSettingsPr
   const queryClient = useQueryClient();
   const [name, setName] = useState(project?.name || '');
   const [description, setDescription] = useState(project?.description || '');
+  const [projectType, setProjectType] = useState<ProjectType>(project?.type || 'SCRUM');
+
+  React.useEffect(() => {
+    if (project?.type) {
+      setProjectType(project.type);
+    }
+  }, [project?.type]);
 
   const updateMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string }) => {
+    mutationFn: async (data: { name: string; description: string; type?: ProjectType }) => {
       return await projectsApi.update(projectKey, data);
     },
     onSuccess: (updated) => {
@@ -66,6 +73,7 @@ function GeneralSettingsForm({ project, projectKey, loading }: GeneralSettingsPr
     updateMutation.mutate({
       name: name.trim(),
       description: description.trim(),
+      type: projectType,
     });
   };
 
@@ -116,6 +124,55 @@ function GeneralSettingsForm({ project, projectKey, loading }: GeneralSettingsPr
               disabled={loading}
               className="text-xs h-9"
             />
+          </div>
+
+          {/* Project Framework & Methodology */}
+          <div className="space-y-2 pt-1">
+            <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+              <span>Project Framework / Methodology</span>
+              <Badge variant="outline" className="text-[10px] uppercase font-mono">
+                {projectType}
+              </Badge>
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setProjectType('SCRUM')}
+                className={cn(
+                  'flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer',
+                  projectType === 'SCRUM'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                    : 'border-border/70 hover:border-border hover:bg-muted/30'
+                )}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold text-foreground">Scrum</span>
+                  {projectType === 'SCRUM' && <Check size={14} className="text-primary" />}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                  Sprint planning & timeboxed cycles. The Board is active only when a sprint is running.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setProjectType('KANBAN')}
+                className={cn(
+                  'flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer',
+                  projectType === 'KANBAN'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                    : 'border-border/70 hover:border-border hover:bg-muted/30'
+                )}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold text-foreground">Kanban</span>
+                  {projectType === 'KANBAN' && <Check size={14} className="text-primary" />}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                  Continuous workflow on a single board. No sprints required; tickets are always visible on the board.
+                </p>
+              </button>
+            </div>
           </div>
 
           <div className="pt-2 flex items-center justify-between">
@@ -367,14 +424,14 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Shield size={16} className="text-primary" />
-            Kanban Lifecycle Columns
+            Board Lifecycle Columns
           </CardTitle>
           <CardDescription className="text-xs">
             Stages mapped to backend <code className="font-mono text-[11px] bg-muted px-1 rounded">IssueStatus</code> enum.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-center text-xs">
             <div className="p-3 rounded-lg border border-border/60 bg-muted/20">
               <p className="font-bold text-foreground">To Do</p>
               <p className="text-[10px] font-mono text-muted-foreground mt-0.5">TODO</p>
@@ -386,6 +443,14 @@ export default function SettingsPage() {
             <div className="p-3 rounded-lg border border-border/60 bg-amber-500/10 border-amber-500/30">
               <p className="font-bold text-amber-500">In Review</p>
               <p className="text-[10px] font-mono text-muted-foreground mt-0.5">IN_REVIEW</p>
+            </div>
+            <div className="p-3 rounded-lg border border-border/60 bg-purple-500/10 border-purple-500/30">
+              <p className="font-bold text-purple-500">In QA</p>
+              <p className="text-[10px] font-mono text-muted-foreground mt-0.5">IN_QA</p>
+            </div>
+            <div className="p-3 rounded-lg border border-border/60 bg-teal-500/10 border-teal-500/30">
+              <p className="font-bold text-teal-500">Ready for Release</p>
+              <p className="text-[10px] font-mono text-muted-foreground mt-0.5">READY_FOR_RELEASE</p>
             </div>
             <div className="p-3 rounded-lg border border-border/60 bg-emerald-500/10 border-emerald-500/30">
               <p className="font-bold text-emerald-500">Done</p>

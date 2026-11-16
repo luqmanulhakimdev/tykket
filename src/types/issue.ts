@@ -1,6 +1,13 @@
 export type IssueType = 'EPIC' | 'STORY' | 'TASK' | 'SUBTASK' | 'BUG';
 
-export type IssueStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BACKLOG';
+export type IssueStatus =
+  | 'TODO'
+  | 'IN_PROGRESS'
+  | 'IN_REVIEW'
+  | 'IN_QA'
+  | 'READY_FOR_RELEASE'
+  | 'DONE'
+  | 'BACKLOG';
 
 export type IssuePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | 'LOWEST' | 'HIGHEST';
 
@@ -15,9 +22,13 @@ export interface User {
   updated_at?: string;
 }
 
+export type ProjectRoleName = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' | string;
+
+export type ProjectType = 'SCRUM' | 'KANBAN';
+
 export interface ProjectRole {
   id: string;
-  name: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' | string;
+  name: ProjectRoleName;
   description?: string;
   created_at?: string;
 }
@@ -37,6 +48,7 @@ export interface Project {
   name: string;
   key: string;
   description?: string;
+  type?: ProjectType;
   owner_id: string;
   issue_counter: number;
   created_at: string;
@@ -167,6 +179,19 @@ export interface UpdateIssueInput {
   storyPoints?: number;
   story_points?: number;
   position?: number;
+}
+
+export interface CreateProjectInput {
+  name: string;
+  key: string;
+  description?: string;
+  type?: ProjectType;
+}
+
+export interface UpdateProjectInput {
+  name?: string;
+  description?: string;
+  type?: ProjectType;
 }
 
 export interface MoveIssueInput {

@@ -13,7 +13,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCreateProjectMutation } from '@/hooks/use-issues';
-import { FolderPlus, Loader2, Sparkles } from 'lucide-react';
+import { ProjectType } from '@/types/issue';
+import { FolderPlus, Loader2, Sparkles, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface CreateProjectDialogProps {
   open: boolean;
@@ -27,6 +29,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
   const [name, setName] = useState('');
   const [key, setKey] = useState('');
   const [description, setDescription] = useState('');
+  const [type, setType] = useState<ProjectType>('SCRUM');
   const [isKeyManuallyEdited, setIsKeyManuallyEdited] = useState(false);
   const [keyError, setKeyError] = useState('');
 
@@ -82,17 +85,19 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
         name: trimmedName,
         key: trimmedKey,
         description: description.trim() || undefined,
+        type,
       });
 
       // Reset form
       setName('');
       setKey('');
       setDescription('');
+      setType('SCRUM');
       setIsKeyManuallyEdited(false);
       setKeyError('');
       onOpenChange(false);
 
-      // Navigate to new project's kanban board
+      // Navigate to new project's board
       router.push(`/projects/${newProject.key}/board`);
     } catch {
       // Error handled by mutation onError toast
@@ -176,6 +181,52 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
               onChange={(e) => setDescription(e.target.value)}
               className="h-9 text-xs"
             />
+          </div>
+
+          {/* Project Framework / Methodology Selection */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold">
+              Project Framework <span className="text-destructive">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setType('SCRUM')}
+                className={cn(
+                  'flex flex-col text-left p-3 rounded-xl border transition-all cursor-pointer',
+                  type === 'SCRUM'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                    : 'border-border hover:border-primary/40 hover:bg-muted/30'
+                )}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold text-foreground">Scrum</span>
+                  {type === 'SCRUM' && <Check size={14} className="text-primary" />}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                  Sprint planning & burndown. Board tracks active sprints.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setType('KANBAN')}
+                className={cn(
+                  'flex flex-col text-left p-3 rounded-xl border transition-all cursor-pointer',
+                  type === 'KANBAN'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                    : 'border-border hover:border-primary/40 hover:bg-muted/30'
+                )}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold text-foreground">Kanban</span>
+                  {type === 'KANBAN' && <Check size={14} className="text-primary" />}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                  Continuous delivery. Board is always visible without sprints.
+                </p>
+              </button>
+            </div>
           </div>
 
           <DialogFooter className="pt-2 gap-2 sm:gap-0">

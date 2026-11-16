@@ -21,7 +21,7 @@ export function ShortcutsDialog() {
         { key: '⌘ K', desc: 'Open Command Palette' },
         { key: '?', desc: 'Show Keyboard Shortcuts' },
         { key: 'T', desc: 'Toggle Dark / Light Theme' },
-        { key: 'G then B', desc: 'Go to Kanban Board' },
+        { key: 'G then B', desc: 'Go to Board' },
         { key: 'G then L', desc: 'Go to Project Backlog' },
         { key: 'G then T', desc: 'Go to Trash Bin' },
         { key: 'G then S', desc: 'Go to Project Settings' },

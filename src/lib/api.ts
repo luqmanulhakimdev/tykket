@@ -5,6 +5,7 @@ import {
   Issue,
   MoveIssueInput,
   Project,
+  ProjectType,
   ProjectMember,
   Sprint,
   UpdateIssueInput,
@@ -252,7 +253,12 @@ export const projectsApi = {
     return res.data.data || [];
   },
 
-  create: async (data: { name: string; key: string; description?: string }): Promise<Project> => {
+  create: async (data: {
+    name: string;
+    key: string;
+    description?: string;
+    type?: ProjectType;
+  }): Promise<Project> => {
     const res: AxiosResponse<ApiResponse<Project>> = await apiClient.post(
       '/projects',
       data
@@ -264,7 +270,7 @@ export const projectsApi = {
 
   update: async (
     projectIdOrKey: string,
-    data: { name: string; description?: string }
+    data: { name?: string; description?: string; type?: ProjectType }
   ): Promise<Project> => {
     const id = await resolveProjectId(projectIdOrKey);
     const res: AxiosResponse<ApiResponse<Project>> = await apiClient.put(
@@ -528,6 +534,7 @@ export const issuesApi = {
     if (data.title !== undefined) payload.title = data.title;
     if (data.description !== undefined) payload.description = data.description;
     if (data.type !== undefined) payload.type = data.type;
+    if (data.status !== undefined) payload.status = data.status;
 
     if (data.priority !== undefined) {
       let p = data.priority;

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useIssueModal } from '@/context/issue-modal-context';
 import { useCommandPalette } from '@/context/command-palette-context';
@@ -55,11 +56,17 @@ export function Header({ projectKey = 'TYK', projectName }: HeaderProps) {
         <Link
           href="/projects"
           className={cn(
-            'flex items-center gap-1.5 transition-colors font-medium hover:text-foreground',
+            'flex items-center gap-2 transition-colors font-medium hover:text-foreground',
             isProjectsListPage && 'font-semibold text-foreground'
           )}
         >
-          <FolderKanban size={15} className="text-primary shrink-0" />
+          <Image
+            src="/logo.png"
+            alt="Tykket"
+            width={18}
+            height={18}
+            className="rounded shrink-0"
+          />
           <span>Projects</span>
         </Link>
 

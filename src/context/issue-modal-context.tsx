@@ -7,6 +7,7 @@ interface OpenCreateOptions {
   status?: IssueStatus;
   parentId?: string;
   type?: IssueType;
+  sprintId?: string;
 }
 
 interface IssueModalContextType {
@@ -15,6 +16,7 @@ interface IssueModalContextType {
   defaultStatus: IssueStatus;
   defaultParentId?: string;
   defaultType?: IssueType;
+  defaultSprintId?: string;
   openCreateModal: (options?: OpenCreateOptions) => void;
   openEditModal: (issue: Issue) => void;
   closeModal: () => void;
@@ -28,12 +30,14 @@ export function IssueModalProvider({ children }: { children: ReactNode }) {
   const [defaultStatus, setDefaultStatus] = useState<IssueStatus>('TODO');
   const [defaultParentId, setDefaultParentId] = useState<string | undefined>(undefined);
   const [defaultType, setDefaultType] = useState<IssueType | undefined>(undefined);
+  const [defaultSprintId, setDefaultSprintId] = useState<string | undefined>(undefined);
 
   const openCreateModal = useCallback((options?: OpenCreateOptions) => {
     setIssueToEdit(null);
     setDefaultStatus(options?.status ?? 'TODO');
     setDefaultParentId(options?.parentId);
     setDefaultType(options?.type ?? 'TASK');
+    setDefaultSprintId(options?.sprintId);
     setIsOpen(true);
   }, []);
 
@@ -42,6 +46,7 @@ export function IssueModalProvider({ children }: { children: ReactNode }) {
     setDefaultStatus(issue.status);
     setDefaultParentId(issue.parentId || undefined);
     setDefaultType(issue.type);
+    setDefaultSprintId(issue.sprintId || issue.sprint_id || undefined);
     setIsOpen(true);
   }, []);
 
@@ -58,6 +63,7 @@ export function IssueModalProvider({ children }: { children: ReactNode }) {
         defaultStatus,
         defaultParentId,
         defaultType,
+        defaultSprintId,
         openCreateModal,
         openEditModal,
         closeModal,

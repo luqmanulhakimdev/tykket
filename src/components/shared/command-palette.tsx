@@ -223,13 +223,13 @@ export function GlobalCommandPalette({ projectKey = 'TYK' }: { projectKey?: stri
         {/* Navigation */}
         <CommandGroup heading="Navigation">
           <CommandItem
-            value="go to board kanban"
+            value="go to board"
             onSelect={() => handleNavigate(`/projects/${activeProjectKey}/board`)}
             className="flex items-center justify-between cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               <LayoutDashboard size={14} className="text-muted-foreground" />
-              <span>Go to Kanban Board</span>
+              <span>Go to Board</span>
             </div>
             <kbd className="text-[10px] font-mono bg-muted border border-border/80 px-1.5 py-0.5 rounded text-muted-foreground">
               G B

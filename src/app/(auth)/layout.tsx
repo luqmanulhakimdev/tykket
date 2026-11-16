@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -12,9 +13,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* Top Header */}
       <header className="h-16 px-8 flex items-center justify-between relative z-10">
         <Link href="/login" className="flex items-center gap-2.5 group">
-          <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-xs group-hover:scale-105 transition-transform tracking-wider">
-            TY
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Tykket Logo"
+            width={32}
+            height={32}
+            className="rounded-lg shadow-xs group-hover:scale-105 transition-transform shrink-0"
+            priority
+          />
           <span className="font-bold text-base tracking-tight text-foreground">
             Tykket
           </span>

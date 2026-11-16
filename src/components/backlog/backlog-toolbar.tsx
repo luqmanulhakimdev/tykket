@@ -40,6 +40,7 @@ interface BacklogToolbarProps {
   totalCount: number;
   filteredCount: number;
   totalSprintPoints?: number;
+  isScrum?: boolean;
   onOpenSprintPoints: () => void;
   onOpenCreateIssue: () => void;
 }
@@ -49,6 +50,7 @@ export function BacklogToolbar({
   totalCount,
   filteredCount,
   totalSprintPoints = 0,
+  isScrum = true,
   onOpenSprintPoints,
   onOpenCreateIssue,
 }: BacklogToolbarProps) {
@@ -359,26 +361,28 @@ export function BacklogToolbar({
           <span className="font-semibold text-foreground font-mono">{totalCount}</span>
         </div>
 
-        {/* Story Points by User Popup Trigger */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onOpenSprintPoints}
-          className="h-8 px-2.5 text-xs gap-1.5 bg-background/80 hover:bg-muted font-medium cursor-pointer shadow-2xs border-border/80"
-          title="View Sprint Workload & Total Story Points per User"
-        >
-          <BarChart2 size={14} className="text-primary" />
-          <span>Sprint Story Points</span>
-          {totalSprintPoints > 0 && (
-            <Badge
-              variant="secondary"
-              className="h-4 px-1.5 text-[10px] font-mono font-bold bg-primary/10 text-primary border border-primary/20 ml-0.5"
-            >
-              {totalSprintPoints} pts
-            </Badge>
-          )}
-        </Button>
+        {/* Story Points by User Popup Trigger (Scrum mode only) */}
+        {isScrum && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onOpenSprintPoints}
+            className="h-8 px-2.5 text-xs gap-1.5 bg-background/80 hover:bg-muted font-medium cursor-pointer shadow-2xs border-border/80"
+            title="View Sprint Workload & Total Story Points per User"
+          >
+            <BarChart2 size={14} className="text-primary" />
+            <span>Sprint Story Points</span>
+            {totalSprintPoints > 0 && (
+              <Badge
+                variant="secondary"
+                className="h-4 px-1.5 text-[10px] font-mono font-bold bg-primary/10 text-primary border border-primary/20 ml-0.5"
+              >
+                {totalSprintPoints} pts
+              </Badge>
+            )}
+          </Button>
+        )}
 
         {/* Create Backlog Issue Button */}
         <Button

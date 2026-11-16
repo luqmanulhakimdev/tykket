@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/context/auth-context';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,17 @@ export default function RegisterPage() {
 
   return (
     <Card className="border-border/80 shadow-2xl bg-card/90 backdrop-blur-md">
-      <CardHeader className="space-y-1 text-center pb-4">
+      <CardHeader className="space-y-2 text-center pb-4">
+        <div className="flex justify-center mb-1">
+          <Image
+            src="/logo.png"
+            alt="Tykket"
+            width={48}
+            height={48}
+            priority
+            className="rounded-xl drop-shadow-md"
+          />
+        </div>
         <CardTitle className="text-xl font-bold tracking-tight">
           Create your Tykket Workspace
         </CardTitle>

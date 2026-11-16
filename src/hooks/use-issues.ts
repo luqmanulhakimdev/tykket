@@ -15,6 +15,7 @@ import {
   Issue,
   IssueStatus,
   Project,
+  ProjectType,
   ProjectMember,
   Sprint,
   UpdateIssueInput,
@@ -84,6 +85,28 @@ export function useProjects() {
     queryKey: [PROJECTS_QUERY_KEY],
     queryFn: async () => {
       return await projectsApi.list();
+    },
+    staleTime: 30000,
+  });
+}
+
+/**
+ * Fetch a single project by key or ID
+ */
+export function useProject(projectKey = 'TYK') {
+  return useQuery<Project | null>({
+    queryKey: ['project', projectKey],
+    queryFn: async () => {
+      try {
+        return await projectsApi.get(projectKey);
+      } catch {
+        const projects = await projectsApi.list();
+        return (
+          projects.find(
+            (p) => p.key.toLowerCase() === projectKey.toLowerCase() || p.id === projectKey
+          ) || null
+        );
+      }
     },
     staleTime: 30000,
   });
@@ -471,7 +494,12 @@ export function useCreateProjectMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: { name: string; key: string; description?: string }) => {
+    mutationFn: async (data: {
+      name: string;
+      key: string;
+      description?: string;
+      type?: ProjectType;
+    }) => {
       return await projectsApi.create(data);
     },
     onSuccess: (newProject) => {
